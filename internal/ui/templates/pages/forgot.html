@@ -1,19 +1,19 @@
-{{define "title"}}Forgot password · Recipe Journal{{end}}
+{{define "title"}}{{T "title.forgot"}} · {{T "app.name"}}{{end}}
 {{define "content"}}
 <div class="max-w-md mx-auto bg-paper border-l-4 border-ribbon px-8 py-10 mt-8">
-  <h1 class="font-display text-4xl mb-2">forgot your password?</h1>
-  <p class="italic text-muted mb-6">enter your email and we'll send a reset link.</p>
+  <h1 class="font-display text-4xl mb-2">{{T "forgot.heading"}}</h1>
+  <p class="italic text-muted mb-6">{{T "forgot.sub"}}</p>
   <form method="post" action="/forgot" class="space-y-5">
     <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
     <label class="block">
-      <span class="italic text-sm text-muted">email</span>
+      <span class="italic text-sm text-muted">{{T "field.email"}}</span>
       <input name="email" type="email" required autofocus
         class="block w-full mt-1 border-b border-muted/40 bg-transparent py-2 focus:border-ink outline-none">
     </label>
-    <button type="submit" class="w-full bg-ink text-cream py-3 uppercase tracking-widest text-sm hover:bg-ribbon transition-colors">Send reset link</button>
+    <button type="submit" class="w-full bg-ink text-cream py-3 uppercase tracking-widest text-sm hover:bg-ribbon transition-colors">{{T "forgot.submit"}}</button>
   </form>
   <p class="mt-6 text-sm text-muted italic text-center">
-    remembered it? <a href="/login" class="text-ribbon underline-offset-4 hover:underline">log in</a>
+    {{T "forgot.remembered"}} <a href="/login" class="text-ribbon underline-offset-4 hover:underline">{{T "forgot.login_link"}}</a>
   </p>
 </div>
 {{end}}

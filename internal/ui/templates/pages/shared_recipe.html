@@ -1,17 +1,17 @@
-{{define "title"}}{{.Recipe.Name}} · shared recipe{{end}}
+{{define "title"}}{{.Recipe.Name}} · {{T "title.shared_recipe"}}{{end}}
 {{define "content"}}
 <article class="max-w-3xl mx-auto bg-paper border-l-4 border-ribbon px-6 sm:px-10 py-10 relative">
-  <p class="italic text-sm text-muted">shared by {{.Recipe.OwnerName}}</p>
+  <p class="italic text-sm text-muted">{{Tf "share.by" .Recipe.OwnerName}}</p>
 
   <header class="mt-4">
     <h1 class="font-display text-4xl sm:text-5xl leading-tight">{{.Recipe.Name}}</h1>
-    {{if .Recipe.CategoryName}}<p class="italic text-muted mt-1">{{.Recipe.CategoryName}}</p>{{end}}
+    {{if .Recipe.CategoryName}}<p class="italic text-muted mt-1">{{catName .Recipe.CategoryI18nKey .Recipe.CategoryName}}</p>{{end}}
   </header>
 
   <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6 mt-10">
     {{if gt .Recipe.Difficulty 0}}
     <div>
-      <dt class="italic text-sm text-muted">difficulty</dt>
+      <dt class="italic text-sm text-muted">{{T "recipe.difficulty"}}</dt>
       <dd class="flex gap-2 mt-2">
         {{range $d := seq 5}}<span class="w-4 h-4 rounded-full {{if dotsFilled $.Recipe.Difficulty $d}}bg-ink{{else}}border border-ink/40{{end}}"></span>{{end}}
       </dd>
@@ -19,7 +19,7 @@
     {{end}}
     {{if gt .Recipe.Serves 0}}
     <div>
-      <dt class="italic text-sm text-muted">serves</dt>
+      <dt class="italic text-sm text-muted">{{T "recipe.serves"}}</dt>
       <dd class="flex gap-2 mt-2">
         {{range $s := seq 4}}
           <span class="w-8 h-8 rounded-full grid place-items-center font-display text-sm {{if isSelectedI $.Recipe.Serves $s}}bg-ink text-cream{{else}}border border-ink/30 text-muted{{end}}">{{$s}}</span>
@@ -28,16 +28,16 @@
     </div>
     {{end}}
     {{with minutes .Recipe.PrepMinutes}}
-    <div><dt class="italic text-sm text-muted">preparation time</dt><dd class="font-display text-2xl mt-1">{{.}}</dd></div>
+    <div><dt class="italic text-sm text-muted">{{T "recipe.prep_time"}}</dt><dd class="font-display text-2xl mt-1">{{.}}</dd></div>
     {{end}}
     {{with minutes .Recipe.CookMinutes}}
-    <div><dt class="italic text-sm text-muted">cooking time</dt><dd class="font-display text-2xl mt-1">{{.}}</dd></div>
+    <div><dt class="italic text-sm text-muted">{{T "recipe.cook_time"}}</dt><dd class="font-display text-2xl mt-1">{{.}}</dd></div>
     {{end}}
   </dl>
 
   {{if .Recipe.Ingredients}}
   <section class="mt-10">
-    <h2 class="italic text-sm text-muted mb-3">ingredients</h2>
+    <h2 class="italic text-sm text-muted mb-3">{{T "recipe.ingredients"}}</h2>
     <ul class="space-y-1">
       {{range lines .Recipe.Ingredients}}<li class="border-b border-muted/15 py-1.5 font-display text-lg">{{.}}</li>{{end}}
     </ul>
@@ -46,7 +46,7 @@
 
   {{if .Recipe.Process}}
   <section class="mt-10">
-    <h2 class="italic text-sm text-muted mb-3">cooking process</h2>
+    <h2 class="italic text-sm text-muted mb-3">{{T "recipe.process"}}</h2>
     <ol class="space-y-3 list-decimal pl-6 marker:text-ribbon marker:font-display">
       {{range lines .Recipe.Process}}<li class="font-display text-lg leading-relaxed">{{.}}</li>{{end}}
     </ol>
@@ -55,14 +55,14 @@
 
   {{if .Recipe.WinePairings}}
   <section class="mt-10">
-    <h2 class="italic text-sm text-muted mb-1">wine pairings</h2>
+    <h2 class="italic text-sm text-muted mb-1">{{T "recipe.wine"}}</h2>
     <p class="font-display text-xl italic">{{.Recipe.WinePairings}}</p>
   </section>
   {{end}}
 
   {{if .Recipe.Notes}}
   <section class="mt-10">
-    <h2 class="italic text-sm text-muted mb-1">notes</h2>
+    <h2 class="italic text-sm text-muted mb-1">{{T "recipe.notes"}}</h2>
     <p class="font-display text-lg leading-relaxed whitespace-pre-line">{{.Recipe.Notes}}</p>
   </section>
   {{end}}
@@ -73,12 +73,12 @@
         {{if ne .CurrentUser.ID .Recipe.UserID}}
           <form hx-post="/share/{{.Recipe.ShareToken}}/save" hx-target="#save-zone" hx-swap="outerHTML">
             <button class="px-5 py-2 bg-ink text-cream text-xs uppercase tracking-widest hover:bg-ribbon">
-              Add to my journal
+              {{T "share.add_to_mine"}}
             </button>
           </form>
         {{end}}
       {{else}}
-        <a href="/signup" class="italic text-sm text-muted hover:text-ribbon">start your own journal →</a>
+        <a href="/signup" class="italic text-sm text-muted hover:text-ribbon">{{T "share.start_own"}}</a>
       {{end}}
     </div>
   </footer>

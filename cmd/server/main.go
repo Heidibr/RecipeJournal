@@ -122,6 +122,10 @@ func run() error {
 	r.Get("/login", h.ShowLogin)
 	r.Post("/login", h.DoLogin)
 	r.Post("/logout", h.DoLogout)
+
+	// Language switch is public: the login and signup pages need it too.
+	// POST (not GET) so it is CSRF-protected and never prefetched.
+	r.Post("/lang/{lang}", h.SetLanguage)
 	r.Get("/share/{token}", h.ShowSharedRecipe) // public read-only
 
 	// Public verification/reset entry points — no auth required because the

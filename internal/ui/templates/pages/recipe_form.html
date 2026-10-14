@@ -1,4 +1,4 @@
-{{define "title"}}{{if .Recipe.ID}}Edit recipe{{else}}New recipe{{end}} · Recipe Journal{{end}}
+{{define "title"}}{{if .Recipe.ID}}{{T "title.edit_recipe"}}{{else}}{{T "title.new_recipe"}}{{end}} · {{T "app.name"}}{{end}}
 {{define "content"}}
 <div class="max-w-3xl mx-auto bg-paper border-l-4 border-ribbon px-6 sm:px-10 py-8 sm:py-10 relative">
   <form method="post"
@@ -9,18 +9,18 @@
     <!-- top: category selector + recipe title -->
     <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6">
       <div class="flex-1 min-w-0">
-        <label class="italic text-sm text-muted">recipe</label>
-        <input name="name" required value="{{.Recipe.Name}}" placeholder="give it a name…"
+        <label class="italic text-sm text-muted">{{T "recipe.field"}}</label>
+        <input name="name" required value="{{.Recipe.Name}}" placeholder="{{T "recipe.name_placeholder"}}"
           class="block w-full mt-1 border-b-2 border-muted/40 bg-transparent py-2 font-display text-2xl sm:text-3xl focus:border-ink outline-none">
       </div>
       <div class="sm:w-48">
-        <label class="italic text-sm text-muted">category</label>
+        <label class="italic text-sm text-muted">{{T "recipe.category"}}</label>
         <select name="category_id"
           class="block w-full mt-1 border-b border-muted/40 bg-transparent py-2 italic focus:border-ink outline-none">
-          <option value="">— uncategorised —</option>
+          <option value="">{{T "recipe.uncategorised"}}</option>
           {{$selCat := derefI64 $.Recipe.CategoryID}}
           {{range .Categories}}
-            <option value="{{.ID}}" {{if isSelected $selCat .ID}}selected{{end}}>{{.Name}}</option>
+            <option value="{{.ID}}" {{if isSelected $selCat .ID}}selected{{end}}>{{catName .I18nKey .Name}}</option>
           {{end}}
         </select>
       </div>
@@ -29,7 +29,7 @@
     <!-- difficulty (5 dots) + serves (1-4 circles) -->
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
       <fieldset>
-        <legend class="italic text-sm text-muted mb-2">difficulty</legend>
+        <legend class="italic text-sm text-muted mb-2">{{T "recipe.difficulty"}}</legend>
         <div class="flex gap-2">
           {{range $d := seq 5}}
             <label class="cursor-pointer">
@@ -41,7 +41,7 @@
       </fieldset>
 
       <fieldset>
-        <legend class="italic text-sm text-muted mb-2">serves</legend>
+        <legend class="italic text-sm text-muted mb-2">{{T "recipe.serves"}}</legend>
         <div class="flex gap-2">
           {{range $s := seq 4}}
             <label class="cursor-pointer">
@@ -56,12 +56,12 @@
     <!-- prep + cook times -->
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
       <label class="block">
-        <span class="italic text-sm text-muted">preparation time (minutes)</span>
+        <span class="italic text-sm text-muted">{{T "recipe.prep_minutes"}}</span>
         <input name="prep_minutes" type="number" min="0" inputmode="numeric" value="{{.Recipe.PrepMinutes}}"
           class="block w-full mt-1 border-b border-muted/40 bg-transparent py-2 focus:border-ink outline-none">
       </label>
       <label class="block">
-        <span class="italic text-sm text-muted">cooking time (minutes)</span>
+        <span class="italic text-sm text-muted">{{T "recipe.cook_minutes"}}</span>
         <input name="cook_minutes" type="number" min="0" inputmode="numeric" value="{{.Recipe.CookMinutes}}"
           class="block w-full mt-1 border-b border-muted/40 bg-transparent py-2 focus:border-ink outline-none">
       </label>
@@ -69,42 +69,42 @@
 
     <!-- ingredients -->
     <label class="block">
-      <span class="italic text-sm text-muted">ingredients</span>
-      <textarea name="ingredients" rows="8" placeholder="one per line…"
+      <span class="italic text-sm text-muted">{{T "recipe.ingredients"}}</span>
+      <textarea name="ingredients" rows="8" placeholder="{{T "recipe.ing_placeholder"}}"
         class="block w-full mt-1 bg-transparent leading-8 outline-none ruled p-2">{{.Recipe.Ingredients}}</textarea>
     </label>
 
     <!-- cooking process -->
     <label class="block">
-      <span class="italic text-sm text-muted">cooking process</span>
-      <textarea name="process" rows="10" placeholder="step by step…"
+      <span class="italic text-sm text-muted">{{T "recipe.process"}}</span>
+      <textarea name="process" rows="10" placeholder="{{T "recipe.proc_placeholder"}}"
         class="block w-full mt-1 bg-transparent leading-8 outline-none ruled p-2">{{.Recipe.Process}}</textarea>
     </label>
 
     <!-- wine pairings -->
     <label class="block">
-      <span class="italic text-sm text-muted">wine pairings</span>
-      <input name="wine_pairings" value="{{.Recipe.WinePairings}}" placeholder="e.g. a crisp pinot grigio…"
+      <span class="italic text-sm text-muted">{{T "recipe.wine"}}</span>
+      <input name="wine_pairings" value="{{.Recipe.WinePairings}}" placeholder="{{T "recipe.wine_placeholder"}}"
         class="block w-full mt-1 border-b border-muted/40 bg-transparent py-2 italic focus:border-ink outline-none">
     </label>
 
     <!-- notes -->
     <label class="block">
-      <span class="italic text-sm text-muted">notes</span>
-      <textarea name="notes" rows="4" placeholder="anything else worth remembering…"
+      <span class="italic text-sm text-muted">{{T "recipe.notes"}}</span>
+      <textarea name="notes" rows="4" placeholder="{{T "recipe.not_placeholder"}}"
         class="block w-full mt-1 bg-transparent leading-8 outline-none ruled p-2">{{.Recipe.Notes}}</textarea>
     </label>
 
     <div class="flex items-center gap-4 pt-4 border-t border-muted/30">
       <button type="submit" class="px-8 py-3 bg-ink text-cream uppercase tracking-widest text-sm hover:bg-ribbon transition-colors">
-        {{if .Recipe.ID}}Save changes{{else}}Save recipe{{end}}
+        {{if .Recipe.ID}}{{T "recipe.save_changes"}}{{else}}{{T "recipe.save_new"}}{{end}}
       </button>
-      <a href="{{if .Recipe.ID}}/recipes/{{.Recipe.ID}}{{else}}/recipes{{end}}" class="text-sm italic text-muted hover:text-ink">cancel</a>
+      <a href="{{if .Recipe.ID}}/recipes/{{.Recipe.ID}}{{else}}/recipes{{end}}" class="text-sm italic text-muted hover:text-ink">{{T "recipe.cancel"}}</a>
       {{if .Recipe.ID}}
         <form method="post" action="/recipes/{{.Recipe.ID}}/delete" class="ml-auto"
-              onsubmit="return confirm('Delete this recipe? This cannot be undone.')">
+              onsubmit="return confirm('{{T "recipe.delete_confirm"}}')">
           <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-          <button type="submit" class="text-sm italic text-muted hover:text-ribbon">delete recipe</button>
+          <button type="submit" class="text-sm italic text-muted hover:text-ribbon">{{T "recipe.delete"}}</button>
         </form>
       {{end}}
     </div>

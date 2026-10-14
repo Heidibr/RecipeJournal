@@ -1,9 +1,9 @@
 {{define "base"}}<!doctype html>
-<html lang="en">
+<html lang="{{lang}}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{block "title" .}}Recipe Journal{{end}}</title>
+  <title>{{block "title" .}}{{T "app.name"}}{{end}}</title>
   <link rel="stylesheet" href="/static/css/styles.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#1b1b1b">
@@ -30,25 +30,29 @@
   <header class="border-b border-muted/30 bg-paper">
     <nav class="max-w-5xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2">
       <a href="/recipes" class="font-display text-xl sm:text-2xl tracking-tight">
-        <span class="text-ribbon">recipe</span> journal
+        <span class="text-ribbon">{{T "app.name"}}</span>
       </a>
-      <a href="/recipes" class="text-xs sm:text-sm uppercase tracking-widest text-muted hover:text-ink">Recipes</a>
-      <a href="/categories" class="text-xs sm:text-sm uppercase tracking-widest text-muted hover:text-ink">Categories</a>
+      <a href="/recipes" class="text-xs sm:text-sm uppercase tracking-widest text-muted hover:text-ink">{{T "nav.recipes"}}</a>
+      <a href="/categories" class="text-xs sm:text-sm uppercase tracking-widest text-muted hover:text-ink">{{T "nav.categories"}}</a>
       <span class="ml-auto text-xs sm:text-sm text-muted hidden sm:inline">{{.CurrentUser.Name}}</span>
+      {{template "lang_switch.html" .}}
       <form action="/logout" method="post" onsubmit="window.offlineClear && window.offlineClear();">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-        <button class="text-xs sm:text-sm uppercase tracking-widest text-muted hover:text-ribbon" type="submit">Log out</button>
+        <button class="text-xs sm:text-sm uppercase tracking-widest text-muted hover:text-ribbon" type="submit">{{T "nav.logout"}}</button>
       </form>
     </nav>
   </header>
   {{end}}
+  {{if not .CurrentUser}}
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 pt-4 text-right">{{template "lang_switch.html" .}}</div>
+  {{end}}
   <main class="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
     {{if and .CurrentUser (not .CurrentUser.EmailVerified)}}
     <div class="mb-6 rounded border-l-4 border-ribbon bg-paper px-4 py-3 text-sm flex flex-wrap items-center gap-x-4 gap-y-2">
-      <span>Verify your email to enable sharing recipes. We sent a link to <strong>{{.CurrentUser.Email}}</strong>.</span>
+      <span>{{T "banner.verify"}} <strong>{{.CurrentUser.Email}}</strong>.</span>
       <form method="post" action="/verify/resend" class="ml-auto">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-        <button class="text-xs uppercase tracking-widest text-ribbon hover:text-ink">Resend email</button>
+        <button class="text-xs uppercase tracking-widest text-ribbon hover:text-ink">{{T "banner.resend"}}</button>
       </form>
     </div>
     {{end}}

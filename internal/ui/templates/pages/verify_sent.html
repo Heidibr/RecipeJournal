@@ -1,8 +1,8 @@
-{{define "title"}}Verification email sent · Recipe Journal{{end}}
+{{define "title"}}{{T "title.verify_sent"}} · {{T "app.name"}}{{end}}
 {{define "content"}}
 <div class="max-w-md mx-auto bg-paper border-l-4 border-ribbon px-8 py-10 mt-8">
-  <h1 class="font-display text-3xl mb-3">check your inbox</h1>
-  <p class="italic text-muted mb-6">we sent a verification link to {{if .CurrentUser}}{{.CurrentUser.Email}}{{end}}. the link is good for 7 days.</p>
-  <a href="/recipes" class="block w-full text-center bg-ink text-cream py-3 uppercase tracking-widest text-sm hover:bg-ribbon transition-colors">Back to recipes</a>
+  <h1 class="font-display text-3xl mb-3">{{T "sent.heading"}}</h1>
+  <p class="italic text-muted mb-6">{{if .CurrentUser}}{{Tf "verify.sent_to" .CurrentUser.Email}}{{else}}{{T "verify.sent_generic"}}{{end}}</p>
+  <a href="/recipes" class="block w-full text-center bg-ink text-cream py-3 uppercase tracking-widest text-sm hover:bg-ribbon transition-colors">{{T "verify.back"}}</a>
 </div>
 {{end}}

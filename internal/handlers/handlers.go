@@ -4,11 +4,14 @@ package handlers
 import (
 	"errors"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/heidi/recipejournal/internal/auth"
+	"github.com/heidi/recipejournal/internal/i18n"
 	"github.com/heidi/recipejournal/internal/models"
 	"github.com/heidi/recipejournal/internal/store"
 	"github.com/heidi/recipejournal/internal/ui"
@@ -27,6 +30,7 @@ func New(s *store.Store, a *auth.Auth, r *ui.Renderer) *Handlers {
 
 // pageData is the envelope every page template expects.
 type pageData struct {
+	Lang           i18n.Lang
 	CurrentUser    *models.User
 	CSRFToken      string
 	Flash          string
@@ -44,9 +48,96 @@ type pageData struct {
 // one even for anonymous sessions so the signup/login forms can submit).
 func (h *Handlers) baseData(r *http.Request) pageData {
 	return pageData{
+		Lang:        h.lang(r),
 		CurrentUser: auth.UserFromContext(r.Context()),
 		CSRFToken:   nosurf.Token(r),
 	}
+}
+
+// langCookie carries the UI language for visitors who are not signed in (the
+// login, signup and public share pages). For a signed-in user the column on
+// their row is authoritative, so the choice follows them between devices.
+const langCookie = "lang"
+
+// lang resolves the language for a request: the signed-in user's stored
+// preference first, then the cookie, then English.
+func (h *Handlers) lang(r *http.Request) i18n.Lang {
+	if u := auth.UserFromContext(r.Context()); u != nil {
+		if l, ok := i18n.Parse(u.Language); ok {
+			return l
+		}
+	}
+	if c, err := r.Cookie(langCookie); err == nil {
+		if l, ok := i18n.Parse(c.Value); ok {
+			return l
+		}
+	}
+	return i18n.Default
+}
+
+// render is the single place language reaches the renderer, so individual
+// handlers never have to thread it through.
+func (h *Handlers) render(w http.ResponseWriter, r *http.Request, status int, name string, data any) {
+	h.UI.Render(w, status, h.lang(r), name, data)
+}
+
+// SetLanguage switches the UI language, persisting it to the user row when
+// signed in and always to the cookie. It returns the visitor to the page they
+// came from so switching language never loses their place.
+func (h *Handlers) SetLanguage(w http.ResponseWriter, r *http.Request) {
+	lang, ok := i18n.Parse(chi.URLParam(r, "lang"))
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	setLangCookie(w, r, lang)
+	// This route is public (anonymous visitors on the login page can switch
+	// too), so RequireUser has not populated the context -- read the session
+	// directly to find a signed-in user whose row we should update.
+	if uid := h.Auth.CurrentUserID(r); uid != 0 {
+		if err := h.Store.SetUserLanguage(uid, lang.String()); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	http.Redirect(w, r, safeReturnPath(r, "/recipes"), http.StatusSeeOther)
+}
+
+// setLangCookie writes the language cookie. It is the carrier for anonymous
+// visitors, and is also refreshed at login so a user's stored preference
+// reaches the public pages (login, signup, shared recipes) on a new device.
+func setLangCookie(w http.ResponseWriter, r *http.Request, lang i18n.Lang) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     langCookie,
+		Value:    lang.String(),
+		Path:     "/",
+		MaxAge:   int((365 * 24 * time.Hour).Seconds()),
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https",
+	})
+}
+
+// safeReturnPath extracts a same-site path from the Referer header. Only the
+// path and query are used and the result must start with a single "/", so a
+// crafted Referer cannot turn this into an open redirect.
+func safeReturnPath(r *http.Request, fallback string) string {
+	ref := r.Header.Get("Referer")
+	if ref == "" {
+		return fallback
+	}
+	u, err := url.Parse(ref)
+	if err != nil {
+		return fallback
+	}
+	p := u.EscapedPath()
+	if !strings.HasPrefix(p, "/") || strings.HasPrefix(p, "//") {
+		return fallback
+	}
+	if u.RawQuery != "" {
+		p += "?" + u.RawQuery
+	}
+	return p
 }
 
 // --- Home ------------------------------------------------------------------
@@ -62,7 +153,7 @@ func (h *Handlers) Home(w http.ResponseWriter, r *http.Request) {
 // --- Auth handlers ---------------------------------------------------------
 
 func (h *Handlers) ShowSignUp(w http.ResponseWriter, r *http.Request) {
-	h.UI.Render(w, http.StatusOK, "signup", h.baseData(r))
+	h.render(w, r, http.StatusOK, "signup", h.baseData(r))
 }
 
 func (h *Handlers) DoSignUp(w http.ResponseWriter, r *http.Request) {
@@ -72,25 +163,26 @@ func (h *Handlers) DoSignUp(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 	_, err := h.Auth.SignUp(r.Context(), email, name, password)
 	if err != nil {
-		msg := "Something went wrong, please try again."
+		L := h.lang(r)
+		msg := L.T("err.generic")
 		switch {
 		case errors.Is(err, auth.ErrInvalidInput):
-			msg = "Please fill in every field. Password must be at least 8 characters."
+			msg = L.T("err.fill_fields")
 		case errors.Is(err, auth.ErrEmailTaken):
-			msg = "That email is already in use. Try logging in instead."
+			msg = L.T("err.email_taken")
 		}
 		data := h.baseData(r)
 		data.Error = msg
 		data.Email = email
 		data.Name = name
-		h.UI.Render(w, http.StatusBadRequest, "signup", data)
+		h.render(w, r, http.StatusBadRequest, "signup", data)
 		return
 	}
 	http.Redirect(w, r, "/recipes", http.StatusSeeOther)
 }
 
 func (h *Handlers) ShowLogin(w http.ResponseWriter, r *http.Request) {
-	h.UI.Render(w, http.StatusOK, "login", h.baseData(r))
+	h.render(w, r, http.StatusOK, "login", h.baseData(r))
 }
 
 func (h *Handlers) DoLogin(w http.ResponseWriter, r *http.Request) {
@@ -98,18 +190,23 @@ func (h *Handlers) DoLogin(w http.ResponseWriter, r *http.Request) {
 	email := r.FormValue("email")
 	password := r.FormValue("password")
 	ip := clientIP(r)
-	_, err := h.Auth.Login(r.Context(), ip, email, password)
+	u, err := h.Auth.Login(r.Context(), ip, email, password)
 	if err != nil {
 		data := h.baseData(r)
 		data.Email = email
 		switch {
 		case errors.Is(err, auth.ErrTooManyAttempts):
-			data.Error = "Too many login attempts. Please wait a few minutes and try again."
+			data.Error = h.lang(r).T("err.login_throttled")
 		default:
-			data.Error = "Invalid email or password."
+			data.Error = h.lang(r).T("err.bad_login")
 		}
-		h.UI.Render(w, http.StatusUnauthorized, "login", data)
+		h.render(w, r, http.StatusUnauthorized, "login", data)
 		return
+	}
+	// Carry the account's stored language into the cookie so the public pages
+	// speak it too, on this device, from now on.
+	if l, ok := i18n.Parse(u.Language); ok {
+		setLangCookie(w, r, l)
 	}
 	http.Redirect(w, r, "/recipes", http.StatusSeeOther)
 }
@@ -133,17 +230,17 @@ func (h *Handlers) ShowVerifyResult(w http.ResponseWriter, r *http.Request) {
 	uid, err := h.Auth.VerifyEmailToken(token)
 	data := h.baseData(r)
 	if err != nil {
-		data.Error = "This verification link is invalid or has expired. Request a new one from the banner on any page."
-		h.UI.Render(w, http.StatusBadRequest, "verify_result", data)
+		data.Error = h.lang(r).T("err.verify_link")
+		h.render(w, r, http.StatusBadRequest, "verify_result", data)
 		return
 	}
 	// If the viewer happens to already be logged in as a different user, just
 	// land them on /recipes — the verification still applied to the correct
 	// account (uid), we just don't bounce them through their own session.
 	if h.Auth.CurrentUserID(r) == uid {
-		data.Flash = "Email verified — sharing is now enabled. Thanks!"
+		data.Flash = h.lang(r).T("flash.email_verified")
 	}
-	h.UI.Render(w, http.StatusOK, "verify_result", data)
+	h.render(w, r, http.StatusOK, "verify_result", data)
 }
 
 // ResendVerification re-issues a verification token for the current user.
@@ -156,18 +253,18 @@ func (h *Handlers) ResendVerification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Auth.SendVerificationEmail(u); err != nil {
-		http.Error(w, "Could not send verification email — please try again later.", http.StatusInternalServerError)
+		http.Error(w, h.lang(r).T("err.send_verify"), http.StatusInternalServerError)
 		return
 	}
 	data := h.baseData(r)
-	data.Flash = "Verification email sent. Check your inbox (and spam folder)."
-	h.UI.Render(w, http.StatusOK, "verify_sent", data)
+	data.Flash = h.lang(r).T("flash.verify_sent")
+	h.render(w, r, http.StatusOK, "verify_sent", data)
 }
 
 // --- Password reset --------------------------------------------------------
 
 func (h *Handlers) ShowForgot(w http.ResponseWriter, r *http.Request) {
-	h.UI.Render(w, http.StatusOK, "forgot", h.baseData(r))
+	h.render(w, r, http.StatusOK, "forgot", h.baseData(r))
 }
 
 func (h *Handlers) DoForgot(w http.ResponseWriter, r *http.Request) {
@@ -176,20 +273,20 @@ func (h *Handlers) DoForgot(w http.ResponseWriter, r *http.Request) {
 	// Errors here are intentionally swallowed for unknown-email cases inside
 	// SendPasswordResetEmail. A genuine infra error still bubbles up.
 	if err := h.Auth.SendPasswordResetEmail(emailAddr); err != nil {
-		http.Error(w, "Could not send reset email — please try again later.", http.StatusInternalServerError)
+		http.Error(w, h.lang(r).T("err.send_reset"), http.StatusInternalServerError)
 		return
 	}
 	// Always render the same confirmation regardless of whether the address
 	// exists — that's the whole point of the no-enumeration design.
-	h.UI.Render(w, http.StatusOK, "forgot_sent", h.baseData(r))
+	h.render(w, r, http.StatusOK, "forgot_sent", h.baseData(r))
 }
 
 func (h *Handlers) ShowReset(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
 	if _, err := h.Store.LookupPasswordReset(token); err != nil {
 		data := h.baseData(r)
-		data.Error = "This password-reset link is invalid or has expired. Request a new one."
-		h.UI.Render(w, http.StatusBadRequest, "reset_invalid", data)
+		data.Error = h.lang(r).T("err.reset_link")
+		h.render(w, r, http.StatusBadRequest, "reset_invalid", data)
 		return
 	}
 	data := h.baseData(r)
@@ -198,7 +295,7 @@ func (h *Handlers) ShowReset(w http.ResponseWriter, r *http.Request) {
 	// the hidden input. (Avoiding adding a new field to pageData for this
 	// one-off; keeps the envelope from sprouting reset-only state.)
 	data.Email = token
-	h.UI.Render(w, http.StatusOK, "reset", data)
+	h.render(w, r, http.StatusOK, "reset", data)
 }
 
 func (h *Handlers) DoReset(w http.ResponseWriter, r *http.Request) {
@@ -210,17 +307,17 @@ func (h *Handlers) DoReset(w http.ResponseWriter, r *http.Request) {
 		data.Email = token
 		switch {
 		case errors.Is(err, auth.ErrInvalidInput):
-			data.Error = "Password must be at least 8 characters."
-			h.UI.Render(w, http.StatusBadRequest, "reset", data)
+			data.Error = h.lang(r).T("err.password_short")
+			h.render(w, r, http.StatusBadRequest, "reset", data)
 		case errors.Is(err, auth.ErrInvalidToken):
-			data.Error = "This password-reset link is invalid or has expired. Request a new one."
-			h.UI.Render(w, http.StatusBadRequest, "reset_invalid", data)
+			data.Error = h.lang(r).T("err.reset_link")
+			h.render(w, r, http.StatusBadRequest, "reset_invalid", data)
 		default:
-			http.Error(w, "Something went wrong, please try again.", http.StatusInternalServerError)
+			http.Error(w, h.lang(r).T("err.generic"), http.StatusInternalServerError)
 		}
 		return
 	}
-	h.UI.Render(w, http.StatusOK, "reset_done", h.baseData(r))
+	h.render(w, r, http.StatusOK, "reset_done", h.baseData(r))
 }
 
 func (h *Handlers) DoLogout(w http.ResponseWriter, r *http.Request) {
@@ -239,7 +336,7 @@ func (h *Handlers) ListCategories(w http.ResponseWriter, r *http.Request) {
 	}
 	data := h.baseData(r)
 	data.Categories = cats
-	h.UI.Render(w, http.StatusOK, "categories", data)
+	h.render(w, r, http.StatusOK, "categories", data)
 }
 
 func (h *Handlers) CreateCategory(w http.ResponseWriter, r *http.Request) {
@@ -255,7 +352,7 @@ func (h *Handlers) CreateCategory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	h.UI.Render(w, http.StatusOK, "partials/category_row", cat)
+	h.render(w, r, http.StatusOK, "partials/category_row", cat)
 }
 
 func (h *Handlers) UpdateCategory(w http.ResponseWriter, r *http.Request) {
@@ -271,7 +368,7 @@ func (h *Handlers) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	h.UI.Render(w, http.StatusOK, "partials/category_row", cat)
+	h.render(w, r, http.StatusOK, "partials/category_row", cat)
 }
 
 func (h *Handlers) DeleteCategory(w http.ResponseWriter, r *http.Request) {
@@ -320,7 +417,7 @@ func (h *Handlers) ListRecipes(w http.ResponseWriter, r *http.Request) {
 	data.Categories = cats
 	data.Recipes = recipes
 	data.ActiveCategory = active
-	h.UI.Render(w, http.StatusOK, "recipes_list", data)
+	h.render(w, r, http.StatusOK, "recipes_list", data)
 }
 
 func (h *Handlers) NewRecipe(w http.ResponseWriter, r *http.Request) {
@@ -329,7 +426,7 @@ func (h *Handlers) NewRecipe(w http.ResponseWriter, r *http.Request) {
 	data := h.baseData(r)
 	data.Categories = cats
 	data.Recipe = &models.Recipe{}
-	h.UI.Render(w, http.StatusOK, "recipe_form", data)
+	h.render(w, r, http.StatusOK, "recipe_form", data)
 }
 
 func (h *Handlers) ShowRecipe(w http.ResponseWriter, r *http.Request) {
@@ -347,7 +444,7 @@ func (h *Handlers) ShowRecipe(w http.ResponseWriter, r *http.Request) {
 	rec.ShareURL = absoluteShareURL(r, rec.ShareToken)
 	data := h.baseData(r)
 	data.Recipe = rec
-	h.UI.Render(w, http.StatusOK, "recipe_view", data)
+	h.render(w, r, http.StatusOK, "recipe_view", data)
 }
 
 func (h *Handlers) EditRecipe(w http.ResponseWriter, r *http.Request) {
@@ -366,7 +463,7 @@ func (h *Handlers) EditRecipe(w http.ResponseWriter, r *http.Request) {
 	data := h.baseData(r)
 	data.Recipe = rec
 	data.Categories = cats
-	h.UI.Render(w, http.StatusOK, "recipe_form", data)
+	h.render(w, r, http.StatusOK, "recipe_form", data)
 }
 
 func (h *Handlers) CreateRecipe(w http.ResponseWriter, r *http.Request) {
@@ -418,7 +515,7 @@ func (h *Handlers) ShareRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rec.ShareURL = absoluteShareURL(r, rec.ShareToken)
-	h.UI.Render(w, http.StatusOK, "partials/share_state", rec)
+	h.render(w, r, http.StatusOK, "partials/share_state", rec)
 }
 
 func (h *Handlers) RevokeShare(w http.ResponseWriter, r *http.Request) {
@@ -438,7 +535,7 @@ func (h *Handlers) RevokeShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// rec.ShareToken is now "", so the partial renders the "not shared" state.
-	h.UI.Render(w, http.StatusOK, "partials/share_state", rec)
+	h.render(w, r, http.StatusOK, "partials/share_state", rec)
 }
 
 // absoluteShareURL builds the full public URL for a share token using the
@@ -477,7 +574,7 @@ func (h *Handlers) ShowSharedRecipe(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	h.UI.Render(w, http.StatusOK, "shared_recipe", data)
+	h.render(w, r, http.StatusOK, "shared_recipe", data)
 }
 
 // savePickerData is the view model for the inline category-picker partial that
@@ -526,7 +623,7 @@ func (h *Handlers) SaveSharedRecipe(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			h.UI.Render(w, http.StatusOK, "partials/save_category_picker", savePickerData{
+			h.render(w, r, http.StatusOK, "partials/save_category_picker", savePickerData{
 				Token:        token,
 				RecipeName:   src.Name,
 				Categories:   cats,

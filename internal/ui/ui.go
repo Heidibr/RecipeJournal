@@ -10,20 +10,33 @@ import (
 	"io/fs"
 	"net/http"
 	"strings"
+
+	"github.com/heidi/recipejournal/internal/i18n"
 )
 
 //go:embed templates
 var templatesFS embed.FS
 
+// Renderer holds one fully parsed template set per supported language. The
+// translation funcs (T, Tf, catName) are baked into each set at parse time
+// rather than passed in via request data -- that way a standalone HTMX
+// partial rendered against a models.Category or models.Recipe gets the right
+// language without every data struct having to carry it.
 type Renderer struct {
-	pages map[string]*template.Template
+	sets map[i18n.Lang]map[string]*template.Template
 }
 
 // Funcs are exposed to every template — kept tiny on purpose.
 var funcs = template.FuncMap{
-	"seq":         func(n int) []int { out := make([]int, n); for i := range out { out[i] = i + 1 }; return out },
-	"dotsFilled":  func(level, dot int) bool { return dot <= level },
-	"minutes":     formatMinutes,
+	"seq": func(n int) []int {
+		out := make([]int, n)
+		for i := range out {
+			out[i] = i + 1
+		}
+		return out
+	},
+	"dotsFilled": func(level, dot int) bool { return dot <= level },
+	"minutes":    formatMinutes,
 	"lines": func(s string) []string {
 		out := make([]string, 0)
 		for _, l := range strings.Split(s, "\n") {
@@ -33,10 +46,36 @@ var funcs = template.FuncMap{
 		}
 		return out
 	},
-	"defaultStr":  func(s, d string) string { if s == "" { return d }; return s },
+	"defaultStr": func(s, d string) string {
+		if s == "" {
+			return d
+		}
+		return s
+	},
 	"isSelected":  func(a, b int64) bool { return a == b },
 	"isSelectedI": func(a, b int) bool { return a == b },
-	"derefI64":    func(p *int64) int64 { if p == nil { return 0 }; return *p },
+	"derefI64": func(p *int64) int64 {
+		if p == nil {
+			return 0
+		}
+		return *p
+	},
+}
+
+// langFuncs returns the funcs whose behaviour depends on the language, to be
+// merged over the shared set when parsing that language's templates.
+func langFuncs(l i18n.Lang) template.FuncMap {
+	return template.FuncMap{
+		"T":  l.T,
+		"Tf": l.Tf,
+		// catName renders a category's display name: translated when it is a
+		// seeded default, verbatim when the user named it themselves.
+		"catName":        l.CategoryName,
+		"lang":           func() string { return l.String() },
+		"langLabel":      func() string { return l.Label() },
+		"otherLang":      func() string { return l.Other().String() },
+		"otherLangLabel": func() string { return l.Other().Label() },
+	}
 }
 
 func formatMinutes(m int) string {
@@ -67,42 +106,56 @@ func New() (*Renderer, error) {
 		return nil, err
 	}
 
-	r := &Renderer{pages: make(map[string]*template.Template)}
-
 	pageEntries, err := fs.ReadDir(templatesFS, "templates/pages")
 	if err != nil {
 		return nil, fmt.Errorf("read pages dir: %w", err)
 	}
-	for _, e := range pageEntries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".html") {
-			continue
-		}
-		bs, err := fs.ReadFile(templatesFS, "templates/pages/"+e.Name())
-		if err != nil {
-			return nil, err
-		}
-		t := template.New("base").Funcs(funcs)
-		if _, err := t.Parse(string(layout)); err != nil {
-			return nil, fmt.Errorf("parse layout for %s: %w", e.Name(), err)
-		}
-		for name, body := range partials {
-			if _, err := t.New(name).Parse(body); err != nil {
-				return nil, fmt.Errorf("parse partial %s into %s: %w", name, e.Name(), err)
-			}
-		}
-		if _, err := t.Parse(string(bs)); err != nil {
-			return nil, fmt.Errorf("parse page %s: %w", e.Name(), err)
-		}
-		r.pages[strings.TrimSuffix(e.Name(), ".html")] = t
-	}
 
-	// Standalone partial sets — used for HTMX fragment responses.
-	for name, body := range partials {
-		t := template.New(name).Funcs(funcs)
-		if _, err := t.Parse(body); err != nil {
-			return nil, fmt.Errorf("parse standalone partial %s: %w", name, err)
+	r := &Renderer{sets: make(map[i18n.Lang]map[string]*template.Template, len(i18n.Langs))}
+	for _, lang := range i18n.Langs {
+		// Shared funcs first, then the language-bound ones.
+		fm := template.FuncMap{}
+		for k, v := range funcs {
+			fm[k] = v
 		}
-		r.pages["partials/"+strings.TrimSuffix(name, ".html")] = t
+		for k, v := range langFuncs(lang) {
+			fm[k] = v
+		}
+
+		set := make(map[string]*template.Template)
+		for _, e := range pageEntries {
+			if e.IsDir() || !strings.HasSuffix(e.Name(), ".html") {
+				continue
+			}
+			bs, err := fs.ReadFile(templatesFS, "templates/pages/"+e.Name())
+			if err != nil {
+				return nil, err
+			}
+			t := template.New("base").Funcs(fm)
+			if _, err := t.Parse(string(layout)); err != nil {
+				return nil, fmt.Errorf("parse layout for %s (%s): %w", e.Name(), lang, err)
+			}
+			for name, body := range partials {
+				if _, err := t.New(name).Parse(body); err != nil {
+					return nil, fmt.Errorf("parse partial %s into %s (%s): %w", name, e.Name(), lang, err)
+				}
+			}
+			if _, err := t.Parse(string(bs)); err != nil {
+				return nil, fmt.Errorf("parse page %s (%s): %w", e.Name(), lang, err)
+			}
+			set[strings.TrimSuffix(e.Name(), ".html")] = t
+		}
+
+		// Standalone partial sets — used for HTMX fragment responses.
+		for name, body := range partials {
+			t := template.New(name).Funcs(fm)
+			if _, err := t.Parse(body); err != nil {
+				return nil, fmt.Errorf("parse standalone partial %s (%s): %w", name, lang, err)
+			}
+			set["partials/"+strings.TrimSuffix(name, ".html")] = t
+		}
+
+		r.sets[lang] = set
 	}
 
 	return r, nil
@@ -128,9 +181,15 @@ func loadPartials() (map[string]string, error) {
 	return out, nil
 }
 
-// Render writes the named page to w. Data is whatever the page expects.
-func (r *Renderer) Render(w http.ResponseWriter, status int, name string, data any) {
-	t, ok := r.pages[name]
+// Render writes the named page to w in the given language. Data is whatever
+// the page expects; all translated strings come from the template set rather
+// than from data.
+func (r *Renderer) Render(w http.ResponseWriter, status int, lang i18n.Lang, name string, data any) {
+	set, ok := r.sets[lang]
+	if !ok {
+		set = r.sets[i18n.Default]
+	}
+	t, ok := set[name]
 	if !ok {
 		http.Error(w, "template "+name+" not found", http.StatusInternalServerError)
 		return

@@ -1,25 +1,25 @@
 {{define "share_state.html"}}<div id="share-state" class="bg-cream/50 border border-muted/30 rounded p-5">
   {{if .ShareToken}}
     <div class="flex items-baseline justify-between gap-3 mb-3">
-      <h3 class="italic text-sm text-muted">shared with anyone who has this link</h3>
+      <h3 class="italic text-sm text-muted">{{T "share.active"}}</h3>
       <form hx-post="/recipes/{{.ID}}/share/revoke" hx-target="#share-state" hx-swap="outerHTML"
-            hx-confirm="Revoke this link? It will stop working for anyone you've sent it to.">
-        <button class="text-xs uppercase tracking-widest text-muted hover:text-ribbon">Revoke link</button>
+            hx-confirm="{{T "share.revoke_confirm"}}">
+        <button class="text-xs uppercase tracking-widest text-muted hover:text-ribbon">{{T "share.revoke"}}</button>
       </form>
     </div>
     <div class="flex gap-2">
       <input id="share-url-{{.ID}}" readonly value="{{.ShareURL}}"
         class="flex-1 bg-paper border border-muted/30 rounded px-3 py-2 text-sm font-mono outline-none focus:border-ink">
       <button type="button" class="px-4 py-2 bg-ink text-cream text-xs uppercase tracking-widest hover:bg-ribbon"
-              onclick="const i=document.getElementById('share-url-{{.ID}}'); i.select(); navigator.clipboard.writeText(i.value); this.textContent='Copied';">
-        Copy
+              onclick="const i=document.getElementById('share-url-{{.ID}}'); i.select(); navigator.clipboard.writeText(i.value); this.textContent='{{T "share.copied"}}';">
+        {{T "share.copy"}}
       </button>
     </div>
   {{else}}
     <div class="flex items-center justify-between gap-3">
-      <p class="italic text-sm text-muted">share this recipe with anyone — they won't need an account.</p>
+      <p class="italic text-sm text-muted">{{T "share.inactive"}}</p>
       <form hx-post="/recipes/{{.ID}}/share" hx-target="#share-state" hx-swap="outerHTML">
-        <button class="px-4 py-2 bg-ink text-cream text-xs uppercase tracking-widest hover:bg-ribbon">Create link</button>
+        <button class="px-4 py-2 bg-ink text-cream text-xs uppercase tracking-widest hover:bg-ribbon">{{T "share.create"}}</button>
       </form>
     </div>
   {{end}}

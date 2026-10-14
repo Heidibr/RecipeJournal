@@ -9,6 +9,7 @@ type User struct {
 	Name            string
 	CreatedAt       time.Time
 	EmailVerifiedAt *time.Time // nil means the email is not yet verified
+	Language        string     // UI language code: "en" or "no"
 }
 
 // EmailVerified is true once the user clicked the link in their verification
@@ -22,25 +23,32 @@ type Category struct {
 	Name      string
 	SortOrder int
 	CreatedAt time.Time
+
+	// I18nKey is set only for the categories seeded at signup, and is the
+	// catalogue key used to show a translated name. It is empty for any
+	// category the user created or renamed, whose name is then shown
+	// verbatim -- user-written text is never translated.
+	I18nKey string
 }
 
 type Recipe struct {
-	ID           int64
-	UserID       int64
-	CategoryID   *int64
-	CategoryName string
-	Name         string
-	Difficulty   int
-	Serves       int
-	PrepMinutes  int
-	CookMinutes  int
-	Ingredients  string
-	Process      string
-	WinePairings string
-	Notes        string
-	ShareToken   string // empty means not shared
-	ShareURL     string // populated by handlers from the request host; never persisted
-	OwnerName    string // populated only when fetched via share token
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID              int64
+	UserID          int64
+	CategoryID      *int64
+	CategoryName    string
+	CategoryI18nKey string // see Category.I18nKey; empty for user-named categories
+	Name            string
+	Difficulty      int
+	Serves          int
+	PrepMinutes     int
+	CookMinutes     int
+	Ingredients     string
+	Process         string
+	WinePairings    string
+	Notes           string
+	ShareToken      string // empty means not shared
+	ShareURL        string // populated by handlers from the request host; never persisted
+	OwnerName       string // populated only when fetched via share token
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }

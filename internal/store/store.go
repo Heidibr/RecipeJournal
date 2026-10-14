@@ -94,12 +94,12 @@ func (s *Store) CreateUser(email, passwordHash, name string) (int64, error) {
 
 // userSelectCols + scanUser keep the user-column list in one place so adding
 // future columns (e.g. timezone, locale) only requires touching one spot.
-const userSelectCols = `id, email, password_hash, name, created_at, email_verified_at`
+const userSelectCols = `id, email, password_hash, name, created_at, email_verified_at, language`
 
 func scanUser(row interface{ Scan(...any) error }) (*models.User, error) {
 	var u models.User
 	var verified sql.NullTime
-	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Name, &u.CreatedAt, &verified); err != nil {
+	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Name, &u.CreatedAt, &verified, &u.Language); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
@@ -122,6 +122,13 @@ func (s *Store) UserByID(id int64) (*models.User, error) {
 	return scanUser(s.DB.QueryRow(
 		`SELECT `+userSelectCols+` FROM users WHERE id = ?`, id,
 	))
+}
+
+// SetUserLanguage persists the UI language for a signed-in user, so the
+// choice follows them to any device. Anonymous visitors get the cookie only.
+func (s *Store) SetUserLanguage(userID int64, lang string) error {
+	_, err := s.DB.Exec(`UPDATE users SET language = ? WHERE id = ?`, lang, userID)
+	return err
 }
 
 // --- Email verification ----------------------------------------------------
@@ -287,19 +294,28 @@ func newToken(n int) (string, error) {
 
 // --- Categories ------------------------------------------------------------
 
-var DefaultCategories = []string{
-	"Breakfast & Brunch",
-	"Appetizers & Snacks",
-	"Main Dishes",
-	"Side Dishes",
-	"Soups & Stews",
-	"Desserts & Baking",
-	"Beverages",
-	"Family Favorites",
-	"Quick & Easy",
-	"Recipes to Try",
-	"Vegetarian",
-	"Holidays & Special Events",
+// DefaultCategory is a seeded category: a canonical English Name stored in
+// the row, plus the i18n catalogue Key that lets it render translated. Key
+// must exist in the i18n catalogue for every supported language -- there is a
+// test asserting that.
+type DefaultCategory struct {
+	Key  string
+	Name string
+}
+
+var DefaultCategories = []DefaultCategory{
+	{"cat.breakfast_brunch", "Breakfast & Brunch"},
+	{"cat.appetizers_snacks", "Appetizers & Snacks"},
+	{"cat.main_dishes", "Main Dishes"},
+	{"cat.side_dishes", "Side Dishes"},
+	{"cat.soups_stews", "Soups & Stews"},
+	{"cat.desserts_baking", "Desserts & Baking"},
+	{"cat.beverages", "Beverages"},
+	{"cat.family_favorites", "Family Favorites"},
+	{"cat.quick_easy", "Quick & Easy"},
+	{"cat.recipes_to_try", "Recipes to Try"},
+	{"cat.vegetarian", "Vegetarian"},
+	{"cat.holidays_special_events", "Holidays & Special Events"},
 }
 
 func (s *Store) SeedDefaultCategories(userID int64) error {
@@ -308,22 +324,30 @@ func (s *Store) SeedDefaultCategories(userID int64) error {
 		return err
 	}
 	defer tx.Rollback()
-	stmt, err := tx.Prepare(`INSERT INTO categories (user_id, name, sort_order) VALUES (?, ?, ?)`)
+	stmt, err := tx.Prepare(`INSERT INTO categories (user_id, name, sort_order, i18n_key) VALUES (?, ?, ?, ?)`)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
-	for i, name := range DefaultCategories {
-		if _, err := stmt.Exec(userID, name, i); err != nil {
+	for i, dc := range DefaultCategories {
+		if _, err := stmt.Exec(userID, dc.Name, i, dc.Key); err != nil {
 			return err
 		}
 	}
 	return tx.Commit()
 }
 
+// categorySelectCols + scanCategory keep the category column list in one
+// place, the same pattern userSelectCols / recipeSelectCols follow.
+const categorySelectCols = `id, user_id, name, sort_order, created_at, COALESCE(i18n_key, '')`
+
+func scanCategory(scanner interface{ Scan(...any) error }, c *models.Category) error {
+	return scanner.Scan(&c.ID, &c.UserID, &c.Name, &c.SortOrder, &c.CreatedAt, &c.I18nKey)
+}
+
 func (s *Store) ListCategories(userID int64) ([]models.Category, error) {
 	rows, err := s.DB.Query(
-		`SELECT id, user_id, name, sort_order, created_at
+		`SELECT `+categorySelectCols+`
 		 FROM categories WHERE user_id = ?
 		 ORDER BY sort_order, name`,
 		userID,
@@ -335,7 +359,7 @@ func (s *Store) ListCategories(userID int64) ([]models.Category, error) {
 	var out []models.Category
 	for rows.Next() {
 		var c models.Category
-		if err := rows.Scan(&c.ID, &c.UserID, &c.Name, &c.SortOrder, &c.CreatedAt); err != nil {
+		if err := scanCategory(rows, &c); err != nil {
 			return nil, err
 		}
 		out = append(out, c)
@@ -349,13 +373,13 @@ func (s *Store) ListCategories(userID int64) ([]models.Category, error) {
 // (regardless of case), we auto-assign the copy to it.
 func (s *Store) CategoryByNameCI(userID int64, name string) (*models.Category, error) {
 	row := s.DB.QueryRow(
-		`SELECT id, user_id, name, sort_order, created_at
+		`SELECT `+categorySelectCols+`
 		   FROM categories
 		  WHERE user_id = ? AND LOWER(name) = LOWER(?)`,
 		userID, name,
 	)
 	var c models.Category
-	if err := row.Scan(&c.ID, &c.UserID, &c.Name, &c.SortOrder, &c.CreatedAt); err != nil {
+	if err := scanCategory(row, &c); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
@@ -366,11 +390,11 @@ func (s *Store) CategoryByNameCI(userID int64, name string) (*models.Category, e
 
 func (s *Store) CategoryByID(userID, id int64) (*models.Category, error) {
 	row := s.DB.QueryRow(
-		`SELECT id, user_id, name, sort_order, created_at FROM categories WHERE id = ? AND user_id = ?`,
+		`SELECT `+categorySelectCols+` FROM categories WHERE id = ? AND user_id = ?`,
 		id, userID,
 	)
 	var c models.Category
-	if err := row.Scan(&c.ID, &c.UserID, &c.Name, &c.SortOrder, &c.CreatedAt); err != nil {
+	if err := scanCategory(row, &c); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
@@ -395,9 +419,13 @@ func (s *Store) CreateCategory(userID int64, name string) (*models.Category, err
 	return s.CategoryByID(userID, id)
 }
 
+// UpdateCategoryName renames a category and clears its i18n_key. Once the
+// user has typed their own name for a category, that name is their text and
+// is shown verbatim in every language -- the same rule recipes follow. This
+// is why renaming a seeded category makes it stop translating.
 func (s *Store) UpdateCategoryName(userID, id int64, name string) (*models.Category, error) {
 	res, err := s.DB.Exec(
-		`UPDATE categories SET name = ? WHERE id = ? AND user_id = ?`,
+		`UPDATE categories SET name = ?, i18n_key = NULL WHERE id = ? AND user_id = ?`,
 		name, id, userID,
 	)
 	if err != nil {
@@ -434,7 +462,7 @@ type RecipeFilter struct {
 // recipeSelectCols is the column list shared by ListRecipes / RecipeByID /
 // RecipeByShareToken so a new column only has to be added in one place (and
 // the matching scan target list).
-const recipeSelectCols = `r.id, r.user_id, r.category_id, COALESCE(c.name, ''),
+const recipeSelectCols = `r.id, r.user_id, r.category_id, COALESCE(c.name, ''), COALESCE(c.i18n_key, ''),
 	r.name, r.difficulty, r.serves, r.prep_minutes, r.cook_minutes,
 	r.ingredients, r.process, r.wine_pairings, r.notes,
 	COALESCE(r.share_token, ''),
@@ -443,7 +471,7 @@ const recipeSelectCols = `r.id, r.user_id, r.category_id, COALESCE(c.name, ''),
 func scanRecipe(scanner interface{ Scan(...any) error }, r *models.Recipe) error {
 	var catID sql.NullInt64
 	if err := scanner.Scan(
-		&r.ID, &r.UserID, &catID, &r.CategoryName,
+		&r.ID, &r.UserID, &catID, &r.CategoryName, &r.CategoryI18nKey,
 		&r.Name, &r.Difficulty, &r.Serves, &r.PrepMinutes, &r.CookMinutes,
 		&r.Ingredients, &r.Process, &r.WinePairings, &r.Notes,
 		&r.ShareToken,
@@ -516,7 +544,7 @@ func (s *Store) RecipeByShareToken(token string) (*models.Recipe, error) {
 	var r models.Recipe
 	var catID sql.NullInt64
 	if err := row.Scan(
-		&r.ID, &r.UserID, &catID, &r.CategoryName,
+		&r.ID, &r.UserID, &catID, &r.CategoryName, &r.CategoryI18nKey,
 		&r.Name, &r.Difficulty, &r.Serves, &r.PrepMinutes, &r.CookMinutes,
 		&r.Ingredients, &r.Process, &r.WinePairings, &r.Notes,
 		&r.ShareToken,
