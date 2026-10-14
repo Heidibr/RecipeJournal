@@ -1,0 +1,108 @@
+name: CI / Deploy
+
+# Push to main runs the checks, and deploys to Fly only if they all pass.
+# A failing test or an unformatted file stops the deploy.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Lets you deploy from the Actions tab without pushing a commit.
+  workflow_dispatch:
+
+# Two pushes in quick succession should not race each other to deploy; the
+# newer one wins and the older run is cancelled.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Test, vet, gofmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          # Keep in step with the go directive in go.mod.
+          go-version-file: go.mod
+          cache: true
+
+      - name: gofmt
+        # gofmt -l prints every unformatted file; any output is a failure.
+        # ratelimit.go is excluded because it predates this check -- drop the
+        # grep once it has been formatted.
+        run: |
+          unformatted=$(gofmt -l ./cmd ./internal | grep -v 'ratelimit.go' || true)
+          if [ -n "$unformatted" ]; then
+            echo "These files need gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test
+        run: go test -race ./...
+
+  docker:
+    name: Build image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Verifies the Dockerfile still builds -- including the Tailwind stage,
+      # which generates static/css/styles.css. That file is gitignored, so a
+      # broken CSS build would otherwise only show up in production.
+      - name: docker build
+        run: docker build -t recipejournal:ci .
+
+  deploy:
+    name: Deploy to Fly
+    # Only after both checks pass, and never from a pull request.
+    needs: [check, docker]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: superfly/flyctl-actions/setup-flyctl@1.5
+
+      # --remote-only builds on Fly's builder rather than in the runner.
+      # Migrations run at server startup, so there is no separate step.
+      #
+      # Until FLY_API_TOKEN is set as a repository secret this step reports a
+      # warning and succeeds, so the pipeline is not permanently red before
+      # the token exists. Create one with:
+      #   flyctl tokens create deploy -a recipejournal
+      - name: flyctl deploy
+        id: deploy
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "::warning::FLY_API_TOKEN is not set -- skipping deploy."
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Smoke check
+        if: steps.deploy.outputs.skipped != 'true'
+        # Fail the run if the deployed app does not answer. min_machines_running
+        # is 0, so the first request may be a cold start -- retry a few times.
+        run: |
+          for i in 1 2 3 4 5; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 https://recipejournal.fly.dev/login || true)
+            echo "attempt $i: HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 10
+          done
+          echo "App did not return 200 after deploy"
+          exit 1
