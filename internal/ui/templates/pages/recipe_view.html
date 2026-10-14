@@ -1,0 +1,78 @@
+{{define "title"}}{{.Recipe.Name}} · Recipe Journal{{end}}
+{{define "content"}}
+<article class="max-w-3xl mx-auto bg-paper border-l-4 border-ribbon px-6 sm:px-10 py-8 sm:py-10 relative">
+  <a href="/recipes" class="text-xs uppercase tracking-widest text-muted hover:text-ink">← all recipes</a>
+
+  <header class="mt-4 flex flex-wrap items-start justify-between gap-4">
+    <div class="min-w-0">
+      <h1 class="font-display text-4xl sm:text-5xl leading-tight break-words">{{.Recipe.Name}}</h1>
+      {{if .Recipe.CategoryName}}<p class="italic text-muted mt-1">{{.Recipe.CategoryName}}</p>{{end}}
+    </div>
+    <a href="/recipes/{{.Recipe.ID}}/edit" class="text-sm uppercase tracking-widest text-muted hover:text-ribbon">edit</a>
+  </header>
+
+  <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6 mt-10">
+    {{if gt .Recipe.Difficulty 0}}
+    <div>
+      <dt class="italic text-sm text-muted">difficulty</dt>
+      <dd class="flex gap-2 mt-2">
+        {{range $d := seq 5}}<span class="w-4 h-4 rounded-full {{if dotsFilled $.Recipe.Difficulty $d}}bg-ink{{else}}border border-ink/40{{end}}"></span>{{end}}
+      </dd>
+    </div>
+    {{end}}
+    {{if gt .Recipe.Serves 0}}
+    <div>
+      <dt class="italic text-sm text-muted">serves</dt>
+      <dd class="flex gap-2 mt-2">
+        {{range $s := seq 4}}
+          <span class="w-8 h-8 rounded-full grid place-items-center font-display text-sm {{if isSelectedI $.Recipe.Serves $s}}bg-ink text-cream{{else}}border border-ink/30 text-muted{{end}}">{{$s}}</span>
+        {{end}}
+      </dd>
+    </div>
+    {{end}}
+    {{with minutes .Recipe.PrepMinutes}}
+    <div><dt class="italic text-sm text-muted">preparation time</dt><dd class="font-display text-2xl mt-1">{{.}}</dd></div>
+    {{end}}
+    {{with minutes .Recipe.CookMinutes}}
+    <div><dt class="italic text-sm text-muted">cooking time</dt><dd class="font-display text-2xl mt-1">{{.}}</dd></div>
+    {{end}}
+  </dl>
+
+  {{if .Recipe.Ingredients}}
+  <section class="mt-10">
+    <h2 class="italic text-sm text-muted mb-3">ingredients</h2>
+    <ul class="space-y-1">
+      {{range lines .Recipe.Ingredients}}<li class="border-b border-muted/15 py-1.5 font-display text-lg">{{.}}</li>{{end}}
+    </ul>
+  </section>
+  {{end}}
+
+  {{if .Recipe.Process}}
+  <section class="mt-10">
+    <h2 class="italic text-sm text-muted mb-3">cooking process</h2>
+    <ol class="space-y-3 list-decimal pl-6 marker:text-ribbon marker:font-display">
+      {{range lines .Recipe.Process}}<li class="font-display text-lg leading-relaxed">{{.}}</li>{{end}}
+    </ol>
+  </section>
+  {{end}}
+
+  {{if .Recipe.WinePairings}}
+  <section class="mt-10">
+    <h2 class="italic text-sm text-muted mb-1">wine pairings</h2>
+    <p class="font-display text-xl italic">{{.Recipe.WinePairings}}</p>
+  </section>
+  {{end}}
+
+  {{if .Recipe.Notes}}
+  <section class="mt-10">
+    <h2 class="italic text-sm text-muted mb-1">notes</h2>
+    <p class="font-display text-lg leading-relaxed whitespace-pre-line">{{.Recipe.Notes}}</p>
+  </section>
+  {{end}}
+
+  <section class="mt-12 pt-8 border-t border-muted/20">
+    <h2 class="italic text-sm text-muted mb-3">share</h2>
+    {{template "share_state.html" .Recipe}}
+  </section>
+</article>
+{{end}}

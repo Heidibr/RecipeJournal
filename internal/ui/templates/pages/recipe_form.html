@@ -1,0 +1,113 @@
+{{define "title"}}{{if .Recipe.ID}}Edit recipe{{else}}New recipe{{end}} · Recipe Journal{{end}}
+{{define "content"}}
+<div class="max-w-3xl mx-auto bg-paper border-l-4 border-ribbon px-6 sm:px-10 py-8 sm:py-10 relative">
+  <form method="post"
+        action="{{if .Recipe.ID}}/recipes/{{.Recipe.ID}}/update{{else}}/recipes{{end}}"
+        class="space-y-8">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+
+    <!-- top: category selector + recipe title -->
+    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6">
+      <div class="flex-1 min-w-0">
+        <label class="italic text-sm text-muted">recipe</label>
+        <input name="name" required value="{{.Recipe.Name}}" placeholder="give it a name…"
+          class="block w-full mt-1 border-b-2 border-muted/40 bg-transparent py-2 font-display text-2xl sm:text-3xl focus:border-ink outline-none">
+      </div>
+      <div class="sm:w-48">
+        <label class="italic text-sm text-muted">category</label>
+        <select name="category_id"
+          class="block w-full mt-1 border-b border-muted/40 bg-transparent py-2 italic focus:border-ink outline-none">
+          <option value="">— uncategorised —</option>
+          {{$selCat := derefI64 $.Recipe.CategoryID}}
+          {{range .Categories}}
+            <option value="{{.ID}}" {{if isSelected $selCat .ID}}selected{{end}}>{{.Name}}</option>
+          {{end}}
+        </select>
+      </div>
+    </div>
+
+    <!-- difficulty (5 dots) + serves (1-4 circles) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
+      <fieldset>
+        <legend class="italic text-sm text-muted mb-2">difficulty</legend>
+        <div class="flex gap-2">
+          {{range $d := seq 5}}
+            <label class="cursor-pointer">
+              <input type="radio" name="difficulty" value="{{$d}}" {{if isSelectedI $.Recipe.Difficulty $d}}checked{{end}} class="peer sr-only">
+              <span class="block w-7 h-7 sm:w-6 sm:h-6 rounded-full border-2 border-ink peer-checked:bg-ink transition-colors"></span>
+            </label>
+          {{end}}
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend class="italic text-sm text-muted mb-2">serves</legend>
+        <div class="flex gap-2">
+          {{range $s := seq 4}}
+            <label class="cursor-pointer">
+              <input type="radio" name="serves" value="{{$s}}" {{if isSelectedI $.Recipe.Serves $s}}checked{{end}} class="peer sr-only">
+              <span class="block w-10 h-10 sm:w-9 sm:h-9 rounded-full border-2 border-ink grid place-items-center font-display peer-checked:bg-ink peer-checked:text-cream transition-colors">{{$s}}</span>
+            </label>
+          {{end}}
+        </div>
+      </fieldset>
+    </div>
+
+    <!-- prep + cook times -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
+      <label class="block">
+        <span class="italic text-sm text-muted">preparation time (minutes)</span>
+        <input name="prep_minutes" type="number" min="0" inputmode="numeric" value="{{.Recipe.PrepMinutes}}"
+          class="block w-full mt-1 border-b border-muted/40 bg-transparent py-2 focus:border-ink outline-none">
+      </label>
+      <label class="block">
+        <span class="italic text-sm text-muted">cooking time (minutes)</span>
+        <input name="cook_minutes" type="number" min="0" inputmode="numeric" value="{{.Recipe.CookMinutes}}"
+          class="block w-full mt-1 border-b border-muted/40 bg-transparent py-2 focus:border-ink outline-none">
+      </label>
+    </div>
+
+    <!-- ingredients -->
+    <label class="block">
+      <span class="italic text-sm text-muted">ingredients</span>
+      <textarea name="ingredients" rows="8" placeholder="one per line…"
+        class="block w-full mt-1 bg-transparent leading-8 outline-none ruled p-2">{{.Recipe.Ingredients}}</textarea>
+    </label>
+
+    <!-- cooking process -->
+    <label class="block">
+      <span class="italic text-sm text-muted">cooking process</span>
+      <textarea name="process" rows="10" placeholder="step by step…"
+        class="block w-full mt-1 bg-transparent leading-8 outline-none ruled p-2">{{.Recipe.Process}}</textarea>
+    </label>
+
+    <!-- wine pairings -->
+    <label class="block">
+      <span class="italic text-sm text-muted">wine pairings</span>
+      <input name="wine_pairings" value="{{.Recipe.WinePairings}}" placeholder="e.g. a crisp pinot grigio…"
+        class="block w-full mt-1 border-b border-muted/40 bg-transparent py-2 italic focus:border-ink outline-none">
+    </label>
+
+    <!-- notes -->
+    <label class="block">
+      <span class="italic text-sm text-muted">notes</span>
+      <textarea name="notes" rows="4" placeholder="anything else worth remembering…"
+        class="block w-full mt-1 bg-transparent leading-8 outline-none ruled p-2">{{.Recipe.Notes}}</textarea>
+    </label>
+
+    <div class="flex items-center gap-4 pt-4 border-t border-muted/30">
+      <button type="submit" class="px-8 py-3 bg-ink text-cream uppercase tracking-widest text-sm hover:bg-ribbon transition-colors">
+        {{if .Recipe.ID}}Save changes{{else}}Save recipe{{end}}
+      </button>
+      <a href="{{if .Recipe.ID}}/recipes/{{.Recipe.ID}}{{else}}/recipes{{end}}" class="text-sm italic text-muted hover:text-ink">cancel</a>
+      {{if .Recipe.ID}}
+        <form method="post" action="/recipes/{{.Recipe.ID}}/delete" class="ml-auto"
+              onsubmit="return confirm('Delete this recipe? This cannot be undone.')">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+          <button type="submit" class="text-sm italic text-muted hover:text-ribbon">delete recipe</button>
+        </form>
+      {{end}}
+    </div>
+  </form>
+</div>
+{{end}}

@@ -1,0 +1,22 @@
+{{define "title"}}Email verification · Recipe Journal{{end}}
+{{define "content"}}
+<div class="max-w-md mx-auto bg-paper border-l-4 border-ribbon px-8 py-10 mt-8">
+  {{if .Error}}
+    <h1 class="font-display text-3xl mb-3">link didn't work</h1>
+    <p class="text-sm text-ribbon mb-6">{{.Error}}</p>
+    {{if .CurrentUser}}
+      <form method="post" action="/verify/resend">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <button class="w-full bg-ink text-cream py-3 uppercase tracking-widest text-sm hover:bg-ribbon transition-colors">Send a new link</button>
+      </form>
+    {{else}}
+      <p class="text-sm italic text-muted">Log in and request a new verification email from the banner.</p>
+      <a href="/login" class="block mt-4 text-center text-ribbon underline-offset-4 hover:underline">Log in →</a>
+    {{end}}
+  {{else}}
+    <h1 class="font-display text-3xl mb-3">email verified</h1>
+    <p class="italic text-muted mb-6">your account is fully set up. sharing is now enabled.</p>
+    <a href="/recipes" class="block w-full text-center bg-ink text-cream py-3 uppercase tracking-widest text-sm hover:bg-ribbon transition-colors">Back to recipes</a>
+  {{end}}
+</div>
+{{end}}

@@ -1,0 +1,11 @@
+{{define "category_row.html"}}<li id="cat-{{.ID}}" class="flex items-center gap-3 py-3 group">
+  <form hx-patch="/categories/{{.ID}}" hx-target="#cat-{{.ID}}" hx-swap="outerHTML"
+        class="flex-1 flex items-center gap-3">
+    <input name="name" value="{{.Name}}"
+      class="flex-1 border-b border-transparent bg-transparent py-1 focus:border-ink outline-none font-display text-xl">
+    <button type="submit" class="opacity-0 group-focus-within:opacity-100 text-xs uppercase tracking-widest text-muted hover:text-ribbon transition-opacity">Save</button>
+  </form>
+  <button hx-delete="/categories/{{.ID}}" hx-target="#cat-{{.ID}}" hx-swap="outerHTML"
+          hx-confirm="Delete this category? Recipes in it will become uncategorised."
+          class="opacity-40 hover:opacity-100 hover:text-ribbon text-xl px-2 leading-none">×</button>
+</li>{{end}}

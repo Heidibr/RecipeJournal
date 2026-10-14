@@ -1,0 +1,33 @@
+{{define "save_category_picker.html"}}<div id="save-zone" class="border border-muted/30 bg-paper rounded p-5 text-left">
+  <h3 class="font-display text-xl mb-1">save "{{.RecipeName}}" to your journal</h3>
+  <p class="italic text-sm text-muted mb-4">you don't have a category named "{{.SuggestedNew}}" yet — pick one or create it.</p>
+
+  <form hx-post="/share/{{.Token}}/save/confirm" hx-target="#save-zone" hx-swap="outerHTML" class="space-y-3">
+    {{if .Categories}}
+    <label class="block">
+      <span class="italic text-xs text-muted">use an existing category</span>
+      <select name="category_id" class="mt-1 w-full bg-cream border border-muted/30 rounded px-3 py-2 font-display text-lg">
+        <option value="">— uncategorized —</option>
+        {{range .Categories}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    <p class="italic text-xs text-muted text-center">or</p>
+    {{end}}
+
+    <label class="block">
+      <span class="italic text-xs text-muted">create a new category</span>
+      <input name="new_category_name" placeholder="{{.SuggestedNew}}"
+             class="mt-1 w-full bg-cream border border-muted/30 rounded px-3 py-2 font-display text-lg">
+    </label>
+
+    <div class="flex gap-3 justify-end pt-2">
+      <button type="button" onclick="location.reload()"
+              class="px-4 py-2 text-xs uppercase tracking-widest text-muted hover:text-ribbon">
+        Cancel
+      </button>
+      <button type="submit" class="px-4 py-2 bg-ink text-cream text-xs uppercase tracking-widest hover:bg-ribbon">
+        Save to journal
+      </button>
+    </div>
+  </form>
+</div>{{end}}

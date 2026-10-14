@@ -1,0 +1,12 @@
+/recipejournal
+/server
+/tailwindcss
+*.db
+*.db-shm
+*.db-wal
+/data/
+.env
+.env.local
+/static/css/styles.css
+/tmp/
+.DS_Store

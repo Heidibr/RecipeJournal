@@ -1,0 +1,18 @@
+{
+  "name": "Recipe Journal",
+  "short_name": "Recipes",
+  "description": "Your personal recipe notebook.",
+  "start_url": "/recipes",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5efe1",
+  "theme_color": "#1b1b1b",
+  "icons": [
+    {
+      "src": "/static/img/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

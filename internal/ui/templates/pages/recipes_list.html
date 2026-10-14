@@ -1,0 +1,60 @@
+{{define "title"}}Recipes · Recipe Journal{{end}}
+{{define "content"}}
+<div class="flex items-baseline justify-between mb-8">
+  <div>
+    <h1 class="font-display text-5xl">recipes</h1>
+    <p class="italic text-muted mt-1">{{if .ActiveCategory}}{{.ActiveCategory.Name}}{{else}}your whole journal{{end}}</p>
+  </div>
+  <a href="/recipes/new" class="px-5 py-3 bg-ink text-cream uppercase tracking-widest text-sm hover:bg-ribbon transition-colors">+ new recipe</a>
+</div>
+
+<div class="flex flex-wrap gap-2 mb-8">
+  <a href="/recipes" class="px-3 py-1 text-sm italic rounded-full border {{if not .ActiveCategory}}border-ink bg-ink text-cream{{else}}border-muted/40 text-muted hover:border-ink hover:text-ink{{end}}">all</a>
+  {{range .Categories}}
+    <a href="/recipes?category={{.ID}}"
+       class="px-3 py-1 text-sm italic rounded-full border {{if and $.ActiveCategory (isSelected $.ActiveCategory.ID .ID)}}border-ink bg-ink text-cream{{else}}border-muted/40 text-muted hover:border-ink hover:text-ink{{end}}">
+      {{.Name}}
+    </a>
+  {{end}}
+</div>
+
+{{if not .Recipes}}
+  <div class="bg-paper border-l-4 border-ribbon px-8 py-16 text-center">
+    <p class="font-display text-2xl italic text-muted">no recipes yet</p>
+    <a href="/recipes/new" class="inline-block mt-4 text-ribbon underline-offset-4 hover:underline">write your first one →</a>
+  </div>
+{{else}}
+  <ul class="grid sm:grid-cols-2 gap-4">
+    {{range $r := .Recipes}}
+    <li class="relative">
+      <a href="/recipes/{{$r.ID}}" class="block bg-paper border-l-4 border-ribbon px-6 py-5 pr-14 hover:shadow-md transition-shadow">
+        <div class="flex items-baseline justify-between gap-3">
+          <h2 class="font-display text-2xl">{{$r.Name}}</h2>
+          <div class="flex gap-0.5 shrink-0">
+            {{range $d := seq 5}}<span class="w-2 h-2 rounded-full {{if dotsFilled $r.Difficulty $d}}bg-ink{{else}}bg-muted/30{{end}}"></span>{{end}}
+          </div>
+        </div>
+        <div class="mt-2 flex flex-wrap gap-4 text-xs italic text-muted">
+          {{if $r.CategoryName}}<span>{{$r.CategoryName}}</span>{{end}}
+          {{if gt $r.Serves 0}}<span>serves {{$r.Serves}}</span>{{end}}
+          {{with minutes $r.PrepMinutes}}<span>prep {{.}}</span>{{end}}
+          {{with minutes $r.CookMinutes}}<span>cook {{.}}</span>{{end}}
+        </div>
+      </a>
+      <button type="button"
+              data-offline-toggle="{{$r.ID}}"
+              data-downloaded="0"
+              aria-pressed="false"
+              aria-label="Download for offline"
+              title="Download for offline"
+              onclick="window.offlineToggle({{$r.ID}}, '/recipes/{{$r.ID}}', this)"
+              class="absolute top-3 right-3 w-9 h-9 grid place-items-center text-muted hover:text-ribbon data-[downloaded=1]:text-ribbon">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
+          <path d="M6 3h12v18l-6-4-6 4V3z" fill="none"/>
+        </svg>
+      </button>
+    </li>
+    {{end}}
+  </ul>
+{{end}}
+{{end}}

@@ -1,0 +1,19 @@
+{{define "title"}}Categories · Recipe Journal{{end}}
+{{define "content"}}
+<div class="max-w-2xl mx-auto bg-paper border-l-4 border-ribbon px-8 py-10">
+  <h1 class="font-display text-4xl mb-1">categories</h1>
+  <p class="italic text-muted mb-8">organise your book. rename, remove, or add your own.</p>
+
+  <ul id="category-list" class="divide-y divide-muted/20">
+    {{range .Categories}}{{template "category_row.html" .}}{{end}}
+  </ul>
+
+  <form hx-post="/categories" hx-target="#category-list" hx-swap="beforeend"
+        hx-on::after-request="this.reset()"
+        class="mt-8 flex gap-3 border-t border-muted/30 pt-6">
+    <input name="name" required placeholder="add a new category…"
+      class="flex-1 border-b border-muted/40 bg-transparent py-2 focus:border-ink outline-none italic" >
+    <button type="submit" class="px-4 py-2 bg-ink text-cream text-sm uppercase tracking-widest hover:bg-ribbon transition-colors">Add</button>
+  </form>
+</div>
+{{end}}

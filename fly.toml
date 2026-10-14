@@ -1,0 +1,31 @@
+# fly.toml app configuration file generated for recipejournal on 2026-05-18T10:52:31+02:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'recipejournal'
+primary_region = 'ams'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[[mounts]]
+  source = 'recipes_data'
+  destination = '/data'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = 'requests'
+    hard_limit = 250
+    soft_limit = 200
+
+[[vm]]
+  memory = '256mb'
+  cpus = 1
+  memory_mb = 256

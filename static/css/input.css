@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@source "../../internal/ui/templates/**/*.html";
+
+@theme {
+  --color-cream:    #f5f1e8;
+  --color-paper:    #fefcf6;
+  --color-ink:      #1a1a1a;
+  --color-muted:    #8a7d6b;
+  --color-ribbon:   #c8302d;
+
+  --font-display: "Cormorant Garamond", "Libre Caslon Text", Georgia, serif;
+  --font-body:    "Inter", system-ui, -apple-system, sans-serif;
+}
+
+/* Notebook-paper ruled lines under textareas, evoking the Moleskine pages. */
+.ruled {
+  background-image: repeating-linear-gradient(
+    transparent 0,
+    transparent calc(2rem - 1px),
+    rgba(138, 125, 107, 0.25) calc(2rem - 1px),
+    rgba(138, 125, 107, 0.25) 2rem
+  );
+  background-position: 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  resize: vertical;
+}
