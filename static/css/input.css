@@ -6,11 +6,41 @@
   --color-cream:    #f5f1e8;
   --color-paper:    #fefcf6;
   --color-ink:      #1a1a1a;
-  --color-muted:    #8a7d6b;
-  --color-ribbon:   #c8302d;
+  /* Muted was #8a7d6b, which measured 3.56:1 on cream and so failed WCAG AA
+     for body text (4.5:1). Darkened to 5.80:1 while keeping the warm, slightly
+     olive cast that ties it to the paper. Also used at /20-/40 opacity for
+     rules and borders, which get correspondingly easier to see. */
+  --color-muted:    #675c4c;
+  /* Dark fall green, replacing the original red ribbon (#c8302d, 4.76:1).
+     7.47:1 on cream, and 8.42:1 for white/cream text sitting on it. */
+  --color-ribbon:   #2f5540;
 
   --font-display: "Cormorant Garamond", "Libre Caslon Text", Georgia, serif;
   --font-body:    "Inter", system-ui, -apple-system, sans-serif;
+}
+
+/* Clickable surfaces get the hand cursor. Tailwind v4's preflight leaves
+   <button> on the UA default (an arrow), so every button in the app looked
+   unclickable. Doing it here rather than with cursor-pointer on each element
+   means new buttons are covered automatically.
+
+   Links already get it from the browser. Text inputs and textareas are left
+   on the text caret on purpose -- they are typed into, not clicked. */
+@layer base {
+  button:not(:disabled),
+  [role="button"],
+  summary,
+  select,
+  label:has(> input[type="radio"]),
+  label:has(> input[type="checkbox"]) {
+    cursor: pointer;
+  }
+
+  /* A disabled control should not promise a click. */
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+  }
 }
 
 /* Notebook-paper ruled lines under textareas, evoking the Moleskine pages. */
@@ -18,8 +48,8 @@
   background-image: repeating-linear-gradient(
     transparent 0,
     transparent calc(2rem - 1px),
-    rgba(138, 125, 107, 0.25) calc(2rem - 1px),
-    rgba(138, 125, 107, 0.25) 2rem
+    rgba(103, 92, 76, 0.25) calc(2rem - 1px),
+    rgba(103, 92, 76, 0.25) 2rem
   );
   background-position: 0 0.35rem;
   font-family: var(--font-display);
