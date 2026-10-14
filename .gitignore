@@ -10,3 +10,8 @@
 /static/css/styles.css
 /tmp/
 .DS_Store
+
+# Editor swap/backup files
+*.swp
+*.swo
+*~

@@ -1,22 +1,30 @@
 // Recipe Journal service worker.
 //
 // Two caches:
-//   shell-v1   — app shell (CSS, JS, fonts, manifest). Precached on install.
+//   shell-v2   — app shell (CSS, JS, fonts, manifest). Precached on install.
 //   recipes-v1 — per-recipe pages the user has explicitly "downloaded for
 //                offline" from the recipe list.
 //
 // Strategy:
 //   * Same-origin GET to a URL in recipes-v1 → network-first, fall back to
 //     cache. Keeps the cache fresh while online, still works offline.
-//   * Anything in shell-v1 → cache-first.
+//   * Anything in the shell cache → stale-while-revalidate: serve the cached
+//     copy at once (so an offline launch still paints), then refresh it in
+//     the background so a changed asset is live on the next load. This was
+//     cache-first, which never re-fetched and so made every CSS/JS deploy
+//     invisible to anyone who had already opened the app.
 //   * Everything else → network (no offline fallback).
+//
+// SHELL_CACHE carries a version. Bump it whenever the shell asset *list*
+// changes; routine content changes no longer need a bump, because
+// stale-while-revalidate picks those up on its own.
 //
 // Coordination with the page happens via postMessage:
 //   { type: 'cache',  url }    — fetch and store a recipe URL
 //   { type: 'uncache', url }   — drop a stored recipe URL
 //   { type: 'clear' }          — wipe everything (called on logout)
 
-const SHELL_CACHE = "shell-v1";
+const SHELL_CACHE = "shell-v2";
 const RECIPES_CACHE = "recipes-v1";
 
 const SHELL_URLS = [
@@ -52,10 +60,10 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  e.respondWith(handle(req));
+  e.respondWith(handle(e, req));
 });
 
-async function handle(req) {
+async function handle(e, req) {
   const recipes = await caches.open(RECIPES_CACHE);
   const recipeMatch = await recipes.match(req, { ignoreSearch: true });
   if (recipeMatch) {
@@ -71,7 +79,17 @@ async function handle(req) {
 
   const shell = await caches.open(SHELL_CACHE);
   const shellMatch = await shell.match(req);
-  if (shellMatch) return shellMatch;
+  if (shellMatch) {
+    // Refresh in the background. waitUntil keeps the worker alive until the
+    // put finishes; the failure case (offline) is ignored on purpose, since
+    // we have already decided to serve the cached copy.
+    e.waitUntil(
+      fetch(req)
+        .then((res) => (res.ok ? shell.put(req, res.clone()) : null))
+        .catch(() => null),
+    );
+    return shellMatch;
+  }
 
   return fetch(req);
 }
