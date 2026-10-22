@@ -34,10 +34,8 @@ jobs:
 
       - name: gofmt
         # gofmt -l prints every unformatted file; any output is a failure.
-        # ratelimit.go is excluded because it predates this check -- drop the
-        # grep once it has been formatted.
         run: |
-          unformatted=$(gofmt -l ./cmd ./internal | grep -v 'ratelimit.go' || true)
+          unformatted=$(gofmt -l ./cmd ./internal)
           if [ -n "$unformatted" ]; then
             echo "These files need gofmt:"
             echo "$unformatted"

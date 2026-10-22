@@ -12,9 +12,9 @@ import (
 // across restarts is intentionally skipped: it's a single-binary app, restarts
 // are rare, and an attacker who can trigger a restart has bigger problems.
 type loginLimiter struct {
-	mu         sync.Mutex
-	hits       map[string][]time.Time
-	window     time.Duration
+	mu          sync.Mutex
+	hits        map[string][]time.Time
+	window      time.Duration
 	maxInWindow int
 }
 
