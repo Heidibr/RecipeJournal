@@ -196,6 +196,28 @@ The Dockerfile builds CSS, compiles the binary statically (`CGO_ENABLED=0`),
 and runs it from a distroless image as a non-root user. SQLite lives on the
 mounted `recipes_data` volume at `/data/recipes.db`.
 
+### Domain
+
+The app is served at `https://denlillekokeboken.no`. DNS is at Webhuset:
+
+| Type  | Name  | Value                                    |
+|-------|-------|------------------------------------------|
+| A     | `@`   | the app's IPv4 from `fly ips list`       |
+| AAAA  | `@`   | the app's IPv6 from `fly ips list`       |
+| CNAME | `www` | `recipejournal.fly.dev`                  |
+
+Certificates: `fly certs add denlillekokeboken.no` and
+`fly certs add www.denlillekokeboken.no`.
+
+`APP_URL` (a Fly secret) is the one public address. Emailed links are built
+from it, and every other host -- `recipejournal.fly.dev`, `www.` -- gets a
+308 to it. Set it only once `fly certs check` says the certificate is issued,
+or the redirect points at a domain without working HTTPS:
+
+```bash
+fly secrets set APP_URL=https://denlillekokeboken.no
+```
+
 ## Default categories
 
 When a user signs up, twelve categories are seeded:

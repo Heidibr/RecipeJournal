@@ -14,6 +14,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -206,7 +207,7 @@ func run() error {
 
 	server := &http.Server{
 		Addr:              addr,
-		Handler:           csrfHandler,
+		Handler:           canonicalHost(appURL, isDev, csrfHandler),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
@@ -246,6 +247,28 @@ func securityHeaders(next http.Handler) http.Handler {
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		h.Set("Permissions-Policy", "geolocation=(), camera=(), microphone=()")
 		next.ServeHTTP(w, r)
+	})
+}
+
+// canonicalHost redirects any request whose Host is not APP_URL's host --
+// recipejournal.fly.dev, www. -- to the same path on APP_URL. Cookies and
+// the installed PWA are per-origin, so one public address keeps sessions in
+// one place. It wraps everything, so a request that is about to be
+// redirected never gets a session or CSRF cookie on the wrong host.
+//
+// Off in dev and when APP_URL is localhost. 308 rather than 301 so a POST
+// stays a POST instead of silently becoming a GET.
+func canonicalHost(appURL string, isDev bool, next http.Handler) http.Handler {
+	u, err := url.Parse(appURL)
+	if err != nil || isDev || u.Host == "" || u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1" {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Host == u.Host {
+			next.ServeHTTP(w, r)
+			return
+		}
+		http.Redirect(w, r, u.Scheme+"://"+u.Host+r.URL.RequestURI(), http.StatusPermanentRedirect)
 	})
 }
 

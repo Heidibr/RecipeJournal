@@ -97,9 +97,11 @@ jobs:
         if: steps.deploy.outputs.skipped != 'true'
         # Fail the run if the deployed app does not answer. min_machines_running
         # is 0, so the first request may be a cold start -- retry a few times.
+        # -L follows the redirect to APP_URL once that is set, so this also
+        # checks that the custom domain and its certificate answer.
         run: |
           for i in 1 2 3 4 5; do
-            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 https://recipejournal.fly.dev/login || true)
+            code=$(curl -sSL -o /dev/null -w '%{http_code}' --max-time 30 https://recipejournal.fly.dev/login || true)
             echo "attempt $i: HTTP $code"
             [ "$code" = "200" ] && exit 0
             sleep 10
