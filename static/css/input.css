@@ -3,20 +3,53 @@
 @source "../../internal/ui/templates/**/*.html";
 
 @theme {
-  --color-cream:    #f5f1e8;
-  --color-paper:    #fefcf6;
-  --color-ink:      #1a1a1a;
-  /* Muted was #8a7d6b, which measured 3.56:1 on cream and so failed WCAG AA
-     for body text (4.5:1). Darkened to 5.80:1 while keeping the warm, slightly
-     olive cast that ties it to the paper. Also used at /20-/40 opacity for
-     rules and borders, which get correspondingly easier to see. */
-  --color-muted:    #675c4c;
-  /* Dark fall green, replacing the original red ribbon (#c8302d, 4.76:1).
-     7.47:1 on cream, and 8.42:1 for white/cream text sitting on it. */
-  --color-ribbon:   #2f5540;
+  /* ------------------------------------------------------------------ *
+   * Palette. Three signals, so a colour always means the same thing:
+   *
+   *   ribbon (green) — structure, navigation, confirmation
+   *   terracotta     — content accents, and "you should do something"
+   *   brick          — errors and destructive actions
+   *
+   * Everything else is neutral: ink and muted for text, cream/paper/sand
+   * and the two light tints for surfaces. If a new element does not fit
+   * one of the three signals, it is neutral -- resist inventing a fourth.
+   *
+   * Contrast is measured against cream (#f5f1e8), the app background.
+   * Every text colour here clears WCAG AA for body text (4.5:1), and
+   * cream text clears AA on every filled surface. See README "Colours".
+   * ------------------------------------------------------------------ */
 
-  --font-display: "Cormorant Garamond", "Libre Caslon Text", Georgia, serif;
-  --font-body:    "Inter", system-ui, -apple-system, sans-serif;
+  /* Surfaces. Not text colours -- ink goes on top of these. */
+  --color-paper:      #fefcf6;  /* cards, panels                        */
+  --color-cream:      #f5f1e8;  /* app background                       */
+  --color-sand:       #ece2cf;  /* stripes, inactive fields             */
+  --color-sage-light: #dde5da;  /* green tint: badges, selected rows    */
+  --color-clay-light: #f2ddd2;  /* warm tint: highlights                */
+
+  /* Green: the structural family. */
+  --color-sage:       #4a6b55;  /* 5.28:1  secondary green, borders     */
+  --color-ribbon:     #2f5540;  /* 7.47:1  PRIMARY (fern)               */
+  --color-pine:       #1f3d2b;  /* 10.58:1 hover/pressed on green       */
+
+  /* Warm: contrast to the green. */
+  --color-terracotta: #994a29;  /* 5.53:1  content accent, attention    */
+  --color-brick:      #8f2c1e;  /* 7.31:1  error, delete, warning       */
+  --color-cocoa:      #5a3e2b;  /* 8.63:1  brown bridge, deep borders   */
+
+  /* Text. */
+  --color-muted:      #675c4c;  /* 5.80:1  secondary text               */
+  --color-ink:        #1a1a1a;  /* 15.44:1 body text                    */
+
+  /* One family throughout, Light as the default weight. Helvetica Neue ships
+   * on Apple devices only; everywhere else this lands on Arial, which has no
+   * 300 weight and renders at 400. See README "Typography". No font files are
+   * bundled -- we have no licence for them.
+   *
+   * display and body are the same stack now: the two tokens are kept so the
+   * existing font-display / font-body utilities in the templates still work,
+   * and so a future display face only has to be swapped in one place. */
+  --font-display: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-body:    "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 /* Clickable surfaces get the hand cursor. Tailwind v4's preflight leaves
@@ -41,6 +74,211 @@
   [role="button"][aria-disabled="true"] {
     cursor: not-allowed;
   }
+}
+
+@layer base {
+  /* Light is the house weight. */
+  body {
+    font-weight: 300;
+  }
+
+  /* Light gets too thin below ~14px, so the small uppercase labels and
+     buttons step up to 400. Targeting .uppercase catches exactly those --
+     every small label in this app is uppercase + tracking-widest -- and a
+     font-* utility on an element still overrides this. */
+  .uppercase {
+    font-weight: 400;
+  }
+
+  /* Large titles tighten up; at display sizes Light opens up too much. */
+  h1 {
+    letter-spacing: -0.02em;
+  }
+
+  /* The logo is never stretched: width follows height. */
+  .logo {
+    width: auto;
+    height: auto;
+  }
+}
+
+@layer base {
+  /* Selection in the house green rather than the browser's blue. */
+  ::selection {
+    background: var(--color-sage-light);
+    color: var(--color-pine);
+  }
+
+  /* Chips, links and buttons all shift colour on hover; give them one
+     consistent, short transition instead of per-element guesses. */
+  a, button, .chip, select {
+    transition: color .15s ease, background-color .15s ease, border-color .15s ease;
+  }
+}
+
+/* ---------------------------------------------------------------------- *
+ * Controls.
+ *
+ * Buttons and chips are defined here, once, instead of being assembled from
+ * utilities at each call site. That is what keeps them legible: the colour
+ * pair, the hit area and the focus ring come as a set, and a change lands
+ * everywhere at the same time.
+ *
+ * Every variant pairs a background with a foreground that clears 4.5:1
+ * against it, and every one is at least 44px tall so it can be hit on a
+ * phone.
+ * ---------------------------------------------------------------------- */
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5em;
+    min-height: 2.75rem;          /* 44px: the smallest comfortable target */
+    padding: .625rem 1.25rem;
+    border: 1px solid transparent;
+    border-radius: .375rem;
+    font-size: .875rem;
+    font-weight: 400;             /* Light is too faint at this size */
+    line-height: 1.2;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+  }
+
+  /* Keyboard focus has to be obvious -- and must not rely on colour alone,
+     hence the offset ring rather than a tint. */
+  .btn:focus-visible,
+  .chip:focus-visible {
+    outline: 2px solid var(--color-ribbon);
+    outline-offset: 2px;
+  }
+
+  /* The main action. cream on ribbon = 7.5:1, on pine = 10.6:1. */
+  .btn-primary {
+    background: var(--color-ribbon);
+    border-color: var(--color-ribbon);
+    color: var(--color-cream);
+  }
+  .btn-primary:hover {
+    background: var(--color-pine);
+    border-color: var(--color-pine);
+  }
+
+  /* The quieter action: an outline, not a second filled button competing
+     with the first. ink on paper = 17:1. */
+  .btn-secondary {
+    background: var(--color-paper);
+    border-color: var(--color-sand);
+    color: var(--color-ink);
+  }
+  .btn-secondary:hover {
+    border-color: var(--color-ribbon);
+    color: var(--color-ribbon);
+  }
+
+  /* Destructive. Reads as text until you aim at it, then commits to brick --
+     cream on brick = 7.3:1. */
+  .btn-danger {
+    background: transparent;
+    border-color: transparent;
+    color: var(--color-brick);
+  }
+  .btn-danger:hover {
+    background: var(--color-brick);
+    border-color: var(--color-brick);
+    color: var(--color-cream);
+  }
+
+  /* A button that is only a label: no box until hovered. */
+  .btn-quiet {
+    background: transparent;
+    border-color: transparent;
+    color: var(--color-muted);
+  }
+  .btn-quiet:hover { color: var(--color-ribbon); }
+
+  .btn-block { display: flex; width: 100%; }
+  .btn-sm {
+    min-height: 2.25rem;
+    padding: .375rem .875rem;
+    font-size: .75rem;
+  }
+
+  /* Filter chips. The selected one is filled AND carries more weight, so the
+     state survives greyscale and colour blindness. */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.25rem;
+    padding: .375rem .875rem;
+    border: 1px solid var(--color-sand);
+    border-radius: 9999px;
+    background: var(--color-paper);
+    color: var(--color-muted);
+    font-size: .875rem;
+    font-weight: 300;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .chip:hover {
+    border-color: var(--color-ribbon);
+    color: var(--color-ribbon);
+  }
+  .chip[aria-current="true"] {
+    background: var(--color-ribbon);
+    border-color: var(--color-ribbon);
+    color: var(--color-cream);
+    font-weight: 400;
+  }
+
+  /* Text fields. The resting underline has to clear 3:1 as the boundary of
+     an interactive control (WCAG 1.4.11); sand at 1.25:1 does not, which is
+     why these are not sand. */
+  .field {
+    width: 100%;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-muted) 70%, transparent);
+    padding: .5rem 0;
+    font: inherit;
+    color: var(--color-ink);
+    transition: border-color .15s ease;
+  }
+  .field:hover { border-bottom-color: var(--color-muted); }
+  .field:focus {
+    outline: none;
+    border-bottom-color: var(--color-ribbon);
+    border-bottom-width: 2px;
+    padding-bottom: calc(.5rem - 1px);   /* keep the text from shifting */
+  }
+  .field::placeholder { color: var(--color-muted); opacity: .7; }
+}
+
+/* Ingredient lists get the logo's filled terracotta dots. A real ::before dot
+   rather than list-disc, so the size is fixed at 5px and does not grow with
+   the font size. */
+.dotted-list {
+  list-style: none;
+  padding-left: 0;
+}
+.dotted-list > li {
+  display: flex;
+  align-items: baseline;
+  gap: .7rem;
+}
+.dotted-list > li::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-terracotta);
+  /* Nudge the dot onto the text's optical centre rather than the baseline. */
+  transform: translateY(-0.35em);
 }
 
 /* Notebook-paper ruled lines under textareas, evoking the Moleskine pages. */

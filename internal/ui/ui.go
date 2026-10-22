@@ -95,7 +95,7 @@ func formatMinutes(m int) string {
 // New parses the layout + every page template into a per-page set. Each page is
 // rendered against the same base layout, so the layout always wins. Every page
 // set also includes all partials, so {{template "foo.html"}} works inside pages.
-func New() (*Renderer, error) {
+func New(assetVer string) (*Renderer, error) {
 	layout, err := fs.ReadFile(templatesFS, "templates/layouts/base.html")
 	if err != nil {
 		return nil, fmt.Errorf("read base layout: %w", err)
@@ -121,6 +121,8 @@ func New() (*Renderer, error) {
 		for k, v := range langFuncs(lang) {
 			fm[k] = v
 		}
+		// Content hash for cache-busting asset URLs; same for every language.
+		fm["assetVer"] = func() string { return assetVer }
 
 		set := make(map[string]*template.Template)
 		for _, e := range pageEntries {

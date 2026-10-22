@@ -1,16 +1,16 @@
-{{define "share_state.html"}}<div id="share-state" class="bg-cream/50 border border-muted/30 rounded p-5">
+{{define "share_state.html"}}<div id="share-state" class="bg-cream/50 border border-sand rounded p-5">
   {{if .ShareToken}}
     <div class="flex items-baseline justify-between gap-3 mb-3">
       <h3 class="italic text-sm text-muted">{{T "share.active"}}</h3>
       <form hx-post="/recipes/{{.ID}}/share/revoke" hx-target="#share-state" hx-swap="outerHTML"
             hx-confirm="{{T "share.revoke_confirm"}}">
-        <button class="text-xs uppercase tracking-widest text-muted hover:text-ribbon">{{T "share.revoke"}}</button>
+        <button class="btn btn-danger btn-sm">{{T "share.revoke"}}</button>
       </form>
     </div>
     <div class="flex gap-2">
       <input id="share-url-{{.ID}}" readonly value="{{.ShareURL}}"
-        class="flex-1 bg-paper border border-muted/30 rounded px-3 py-2 text-sm font-mono outline-none focus:border-ink">
-      <button type="button" class="px-4 py-2 bg-ink text-cream text-xs uppercase tracking-widest hover:bg-ribbon"
+        class="flex-1 bg-paper border border-sand rounded px-3 py-2 text-sm font-mono outline-none focus:border-ribbon">
+      <button type="button" class="btn btn-primary btn-sm"
               onclick="const i=document.getElementById('share-url-{{.ID}}'); i.select(); navigator.clipboard.writeText(i.value); this.textContent='{{T "share.copied"}}';">
         {{T "share.copy"}}
       </button>
@@ -19,7 +19,7 @@
     <div class="flex items-center justify-between gap-3">
       <p class="italic text-sm text-muted">{{T "share.inactive"}}</p>
       <form hx-post="/recipes/{{.ID}}/share" hx-target="#share-state" hx-swap="outerHTML">
-        <button class="px-4 py-2 bg-ink text-cream text-xs uppercase tracking-widest hover:bg-ribbon">{{T "share.create"}}</button>
+        <button class="btn btn-primary btn-sm">{{T "share.create"}}</button>
       </form>
     </div>
   {{end}}

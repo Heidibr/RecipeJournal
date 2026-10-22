@@ -1,6 +1,6 @@
 {{define "title"}}{{if .Recipe.ID}}{{T "title.edit_recipe"}}{{else}}{{T "title.new_recipe"}}{{end}} · {{T "app.name"}}{{end}}
 {{define "content"}}
-<div class="max-w-3xl mx-auto bg-paper border-l-4 border-ribbon px-6 sm:px-10 py-8 sm:py-10 relative">
+<div class="max-w-3xl mx-auto bg-paper border border-sand rounded-xl px-6 sm:px-10 py-8 sm:py-10 relative">
   <form method="post"
         action="{{if .Recipe.ID}}/recipes/{{.Recipe.ID}}/update{{else}}/recipes{{end}}"
         class="space-y-8">
@@ -11,12 +11,12 @@
       <div class="flex-1 min-w-0">
         <label class="italic text-sm text-muted">{{T "recipe.field"}}</label>
         <input name="name" required value="{{.Recipe.Name}}" placeholder="{{T "recipe.name_placeholder"}}"
-          class="block w-full mt-1 border-b-2 border-muted/40 bg-transparent py-2 font-display text-2xl sm:text-3xl focus:border-ink outline-none">
+          class="field mt-1 font-display text-2xl sm:text-3xl">
       </div>
       <div class="sm:w-48">
         <label class="italic text-sm text-muted">{{T "recipe.category"}}</label>
         <select name="category_id"
-          class="block w-full mt-1 border-b border-muted/40 bg-transparent py-2 italic focus:border-ink outline-none">
+          class="field mt-1 italic">
           <option value="">{{T "recipe.uncategorised"}}</option>
           {{$selCat := derefI64 $.Recipe.CategoryID}}
           {{range .Categories}}
@@ -34,7 +34,7 @@
           {{range $d := seq 5}}
             <label class="cursor-pointer">
               <input type="radio" name="difficulty" value="{{$d}}" {{if isSelectedI $.Recipe.Difficulty $d}}checked{{end}} class="peer sr-only">
-              <span class="block w-7 h-7 sm:w-6 sm:h-6 rounded-full border-2 border-ink peer-checked:bg-ink transition-colors"></span>
+              <span class="block w-7 h-7 sm:w-6 sm:h-6 rounded-full border-2 border-sage peer-checked:bg-ribbon transition-colors"></span>
             </label>
           {{end}}
         </div>
@@ -46,7 +46,7 @@
           {{range $s := seq 4}}
             <label class="cursor-pointer">
               <input type="radio" name="serves" value="{{$s}}" {{if isSelectedI $.Recipe.Serves $s}}checked{{end}} class="peer sr-only">
-              <span class="block w-10 h-10 sm:w-9 sm:h-9 rounded-full border-2 border-ink grid place-items-center font-display peer-checked:bg-ink peer-checked:text-cream transition-colors">{{$s}}</span>
+              <span class="block w-10 h-10 sm:w-9 sm:h-9 rounded-full border-2 border-sage grid place-items-center font-display peer-checked:bg-ribbon peer-checked:text-cream transition-colors">{{$s}}</span>
             </label>
           {{end}}
         </div>
@@ -58,12 +58,12 @@
       <label class="block">
         <span class="italic text-sm text-muted">{{T "recipe.prep_minutes"}}</span>
         <input name="prep_minutes" type="number" min="0" inputmode="numeric" value="{{.Recipe.PrepMinutes}}"
-          class="block w-full mt-1 border-b border-muted/40 bg-transparent py-2 focus:border-ink outline-none">
+          class="field mt-1">
       </label>
       <label class="block">
         <span class="italic text-sm text-muted">{{T "recipe.cook_minutes"}}</span>
         <input name="cook_minutes" type="number" min="0" inputmode="numeric" value="{{.Recipe.CookMinutes}}"
-          class="block w-full mt-1 border-b border-muted/40 bg-transparent py-2 focus:border-ink outline-none">
+          class="field mt-1">
       </label>
     </div>
 
@@ -85,7 +85,7 @@
     <label class="block">
       <span class="italic text-sm text-muted">{{T "recipe.wine"}}</span>
       <input name="wine_pairings" value="{{.Recipe.WinePairings}}" placeholder="{{T "recipe.wine_placeholder"}}"
-        class="block w-full mt-1 border-b border-muted/40 bg-transparent py-2 italic focus:border-ink outline-none">
+        class="field mt-1 italic">
     </label>
 
     <!-- notes -->
@@ -95,16 +95,16 @@
         class="block w-full mt-1 bg-transparent leading-8 outline-none ruled p-2">{{.Recipe.Notes}}</textarea>
     </label>
 
-    <div class="flex items-center gap-4 pt-4 border-t border-muted/30">
-      <button type="submit" class="px-8 py-3 bg-ink text-cream uppercase tracking-widest text-sm hover:bg-ribbon transition-colors">
+    <div class="flex items-center gap-4 pt-4 border-t border-sand">
+      <button type="submit" class="btn btn-primary">
         {{if .Recipe.ID}}{{T "recipe.save_changes"}}{{else}}{{T "recipe.save_new"}}{{end}}
       </button>
-      <a href="{{if .Recipe.ID}}/recipes/{{.Recipe.ID}}{{else}}/recipes{{end}}" class="text-sm italic text-muted hover:text-ink">{{T "recipe.cancel"}}</a>
+      <a href="{{if .Recipe.ID}}/recipes/{{.Recipe.ID}}{{else}}/recipes{{end}}" class="btn btn-quiet btn-sm">{{T "recipe.cancel"}}</a>
       {{if .Recipe.ID}}
         <form method="post" action="/recipes/{{.Recipe.ID}}/delete" class="ml-auto"
               onsubmit="return confirm('{{T "recipe.delete_confirm"}}')">
           <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-          <button type="submit" class="text-sm italic text-muted hover:text-ribbon">{{T "recipe.delete"}}</button>
+          <button type="submit" class="btn btn-danger btn-sm">{{T "recipe.delete"}}</button>
         </form>
       {{end}}
     </div>

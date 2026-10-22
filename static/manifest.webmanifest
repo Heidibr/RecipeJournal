@@ -1,18 +1,36 @@
 {
-  "name": "Recipe Journal",
-  "short_name": "Recipes",
-  "description": "Your personal recipe notebook.",
+  "name": "Den lille kokeboken",
+  "short_name": "Kokeboken",
+  "description": "Oppskriftsboken din.",
   "start_url": "/recipes",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#f5efe1",
-  "theme_color": "#1b1b1b",
+  "background_color": "#1f3d2b",
+  "theme_color": "#1f3d2b",
   "icons": [
     {
-      "src": "/static/img/icon.svg",
+      "src": "/static/img/app-ikon-mork-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/img/app-ikon-mork-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/img/app-ikon-mork-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/img/app-ikon-mork.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }

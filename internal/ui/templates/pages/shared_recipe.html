@@ -1,6 +1,6 @@
 {{define "title"}}{{.Recipe.Name}} · {{T "title.shared_recipe"}}{{end}}
 {{define "content"}}
-<article class="max-w-3xl mx-auto bg-paper border-l-4 border-ribbon px-6 sm:px-10 py-10 relative">
+<article class="max-w-3xl mx-auto bg-paper border border-sand rounded-xl px-6 sm:px-10 py-10 relative">
   <p class="italic text-sm text-muted">{{Tf "share.by" .Recipe.OwnerName}}</p>
 
   <header class="mt-4">
@@ -13,7 +13,7 @@
     <div>
       <dt class="italic text-sm text-muted">{{T "recipe.difficulty"}}</dt>
       <dd class="flex gap-2 mt-2">
-        {{range $d := seq 5}}<span class="w-4 h-4 rounded-full {{if dotsFilled $.Recipe.Difficulty $d}}bg-ink{{else}}border border-ink/40{{end}}"></span>{{end}}
+        {{range $d := seq 5}}<span class="w-4 h-4 rounded-full {{if dotsFilled $.Recipe.Difficulty $d}}bg-terracotta{{else}}border border-sand{{end}}"></span>{{end}}
       </dd>
     </div>
     {{end}}
@@ -22,7 +22,7 @@
       <dt class="italic text-sm text-muted">{{T "recipe.serves"}}</dt>
       <dd class="flex gap-2 mt-2">
         {{range $s := seq 4}}
-          <span class="w-8 h-8 rounded-full grid place-items-center font-display text-sm {{if isSelectedI $.Recipe.Serves $s}}bg-ink text-cream{{else}}border border-ink/30 text-muted{{end}}">{{$s}}</span>
+          <span class="w-8 h-8 rounded-full grid place-items-center font-display text-sm {{if isSelectedI $.Recipe.Serves $s}}bg-ribbon text-cream{{else}}border border-sand text-muted{{end}}">{{$s}}</span>
         {{end}}
       </dd>
     </div>
@@ -38,8 +38,8 @@
   {{if .Recipe.Ingredients}}
   <section class="mt-10">
     <h2 class="italic text-sm text-muted mb-3">{{T "recipe.ingredients"}}</h2>
-    <ul class="space-y-1">
-      {{range lines .Recipe.Ingredients}}<li class="border-b border-muted/15 py-1.5 font-display text-lg">{{.}}</li>{{end}}
+    <ul class="space-y-1 dotted-list">
+      {{range lines .Recipe.Ingredients}}<li class="border-b border-sand py-1.5 font-display text-lg">{{.}}</li>{{end}}
     </ul>
   </section>
   {{end}}
@@ -47,7 +47,7 @@
   {{if .Recipe.Process}}
   <section class="mt-10">
     <h2 class="italic text-sm text-muted mb-3">{{T "recipe.process"}}</h2>
-    <ol class="space-y-3 list-decimal pl-6 marker:text-ribbon marker:font-display">
+    <ol class="space-y-3 list-decimal pl-6 marker:text-terracotta marker:font-display">
       {{range lines .Recipe.Process}}<li class="font-display text-lg leading-relaxed">{{.}}</li>{{end}}
     </ol>
   </section>
@@ -67,12 +67,12 @@
   </section>
   {{end}}
 
-  <footer class="mt-12 pt-6 border-t border-muted/20 text-center">
+  <footer class="mt-12 pt-6 border-t border-sand text-center">
     <div id="save-zone">
       {{if .CurrentUser}}
         {{if ne .CurrentUser.ID .Recipe.UserID}}
           <form hx-post="/share/{{.Recipe.ShareToken}}/save" hx-target="#save-zone" hx-swap="outerHTML">
-            <button class="px-5 py-2 bg-ink text-cream text-xs uppercase tracking-widest hover:bg-ribbon">
+            <button class="btn btn-primary btn-sm">
               {{T "share.add_to_mine"}}
             </button>
           </form>

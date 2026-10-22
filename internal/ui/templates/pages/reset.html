@@ -1,18 +1,18 @@
 {{define "title"}}{{T "title.reset"}} · {{T "app.name"}}{{end}}
 {{define "content"}}
-<div class="max-w-md mx-auto bg-paper border-l-4 border-ribbon px-8 py-10 mt-8">
+<div class="max-w-md mx-auto bg-paper border border-sand rounded-xl px-8 py-10 mt-8">
   <h1 class="font-display text-4xl mb-2">{{T "reset.heading"}}</h1>
   <p class="italic text-muted mb-6">{{T "reset.sub"}}</p>
-  {{if .Error}}<div class="mb-4 text-sm text-ribbon">{{.Error}}</div>{{end}}
+  {{if .Error}}<div class="mb-4 text-sm text-brick">{{.Error}}</div>{{end}}
   {{/* The reset token is in .Email — repurposed via the handler. */}}
   <form method="post" action="/reset/{{.Email}}" class="space-y-5">
     <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
     <label class="block">
       <span class="italic text-sm text-muted">{{T "reset.new_password"}}</span>
       <input name="password" type="password" required minlength="8" autofocus
-        class="block w-full mt-1 border-b border-muted/40 bg-transparent py-2 focus:border-ink outline-none">
+        class="field mt-1">
     </label>
-    <button type="submit" class="w-full bg-ink text-cream py-3 uppercase tracking-widest text-sm hover:bg-ribbon transition-colors">{{T "reset.submit"}}</button>
+    <button type="submit" class="btn btn-primary btn-block">{{T "reset.submit"}}</button>
   </form>
 </div>
 {{end}}

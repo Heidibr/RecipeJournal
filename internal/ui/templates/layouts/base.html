@@ -4,13 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{block "title" .}}{{T "app.name"}}{{end}}</title>
-  <link rel="stylesheet" href="/static/css/styles.css">
+  <link rel="stylesheet" href="/static/css/styles.css?v={{assetVer}}">
   <link rel="manifest" href="/manifest.webmanifest">
-  <meta name="theme-color" content="#1b1b1b">
-  <link rel="icon" href="/static/img/icon.svg" type="image/svg+xml">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#1f3d2b">
+  <!-- SVG first for browsers that take it, .ico as the fallback (and for the
+       bare /favicon.ico that crawlers request directly). -->
+  <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/img/app-ikon-mork-180.png">
   <meta name="csrf-token" content="{{.CSRFToken}}">
   <script src="/static/js/htmx.min.js" defer></script>
   <script src="/static/js/offline.js" defer></script>
@@ -27,10 +28,20 @@
 </head>
 <body class="min-h-screen bg-cream text-ink font-body antialiased">
   {{if .CurrentUser}}
-  <header class="border-b border-muted/30 bg-paper">
-    <nav class="max-w-5xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2">
-      <a href="/recipes" class="font-display text-xl sm:text-2xl tracking-tight">
-        <span class="text-ribbon">{{T "app.name"}}</span>
+  <header class="border-b border-sand bg-paper">
+    <nav class="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2">
+      <!-- Three widths of the same logo, picked by how much room the header
+           has. Heights are all 32px; the width attributes are the pack's own
+           aspect ratios, so nothing is stretched and nothing shifts on load.
+           32px tall also sets the clear space: header py-4 and the px-4 page
+           gutter are both 16px, half the mark's height. -->
+      <a href="/recipes" class="shrink-0" aria-label="{{T "app.name"}}">
+        <img src="/static/img/logo-merke.svg" alt="" class="logo h-8 sm:hidden"
+             width="22" height="32">
+        <img src="/static/img/logo-to-linjer.svg" alt="" class="logo h-8 hidden sm:block lg:hidden"
+             width="123" height="32">
+        <img src="/static/img/logo-en-linje.svg" alt="" class="logo h-8 hidden lg:block"
+             width="205" height="32">
       </a>
       <a href="/recipes" class="text-xs sm:text-sm uppercase tracking-widest text-muted hover:text-ink">{{T "nav.recipes"}}</a>
       <a href="/categories" class="text-xs sm:text-sm uppercase tracking-widest text-muted hover:text-ink">{{T "nav.categories"}}</a>
@@ -38,7 +49,7 @@
       {{template "lang_switch.html" .}}
       <form action="/logout" method="post" onsubmit="window.offlineClear && window.offlineClear();">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-        <button class="text-xs sm:text-sm uppercase tracking-widest text-muted hover:text-ribbon" type="submit">{{T "nav.logout"}}</button>
+        <button class="text-xs sm:btn btn-quiet btn-sm" type="submit">{{T "nav.logout"}}</button>
       </form>
     </nav>
   </header>
@@ -48,15 +59,15 @@
   {{end}}
   <main class="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
     {{if and .CurrentUser (not .CurrentUser.EmailVerified)}}
-    <div class="mb-6 rounded border-l-4 border-ribbon bg-paper px-4 py-3 text-sm flex flex-wrap items-center gap-x-4 gap-y-2">
+    <div class="mb-6 rounded-lg border-l-4 border-terracotta bg-clay-light px-4 py-3 text-sm flex flex-wrap items-center gap-x-4 gap-y-2">
       <span>{{T "banner.verify"}} <strong>{{.CurrentUser.Email}}</strong>.</span>
       <form method="post" action="/verify/resend" class="ml-auto">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-        <button class="text-xs uppercase tracking-widest text-ribbon hover:text-ink">{{T "banner.resend"}}</button>
+        <button class="text-xs uppercase tracking-widest text-terracotta hover:text-ink">{{T "banner.resend"}}</button>
       </form>
     </div>
     {{end}}
-    {{if .Flash}}<div class="mb-6 rounded border-l-4 border-ribbon bg-paper px-4 py-3 text-sm">{{.Flash}}</div>{{end}}
+    {{if .Flash}}<div class="mb-6 rounded-lg border-l-4 border-ribbon bg-sage-light px-4 py-3 text-sm">{{.Flash}}</div>{{end}}
     {{block "content" .}}{{end}}
   </main>
 </body>

@@ -2,10 +2,10 @@
   <form hx-patch="/categories/{{.ID}}" hx-target="#cat-{{.ID}}" hx-swap="outerHTML"
         class="flex-1 flex items-center gap-3">
     <input name="name" value="{{catName .I18nKey .Name}}"
-      class="flex-1 border-b border-transparent bg-transparent py-1 focus:border-ink outline-none font-display text-xl">
-    <button type="submit" class="opacity-0 group-focus-within:opacity-100 text-xs uppercase tracking-widest text-muted hover:text-ribbon transition-opacity">{{T "categories.save"}}</button>
+      class="flex-1 border-b border-transparent bg-transparent py-1 focus:border-ribbon outline-none font-display text-xl">
+    <button type="submit" class="btn btn-secondary btn-sm opacity-0 group-focus-within:opacity-100 transition-opacity">{{T "categories.save"}}</button>
   </form>
   <button hx-delete="/categories/{{.ID}}" hx-target="#cat-{{.ID}}" hx-swap="outerHTML"
           hx-confirm="{{T "categories.delete_confirm"}}"
-          class="opacity-40 hover:opacity-100 hover:text-ribbon text-xl px-2 leading-none">×</button>
+          class="btn btn-danger btn-sm text-xl leading-none">×</button>
 </li>{{end}}

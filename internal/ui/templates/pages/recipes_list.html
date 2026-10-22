@@ -5,33 +5,35 @@
     <h1 class="font-display text-5xl">{{T "recipes.heading"}}</h1>
     <p class="italic text-muted mt-1">{{if .ActiveCategory}}{{catName .ActiveCategory.I18nKey .ActiveCategory.Name}}{{else}}{{T "recipes.whole"}}{{end}}</p>
   </div>
-  <a href="/recipes/new" class="px-5 py-3 bg-ink text-cream uppercase tracking-widest text-sm hover:bg-ribbon transition-colors">{{T "recipes.new"}}</a>
+  <a href="/recipes/new" class="btn btn-primary">{{T "recipes.new"}}</a>
 </div>
 
 <div class="flex flex-wrap gap-2 mb-8">
-  <a href="/recipes" class="px-3 py-1 text-sm italic rounded-full border {{if not .ActiveCategory}}border-ink bg-ink text-cream{{else}}border-muted/40 text-muted hover:border-ink hover:text-ink{{end}}">{{T "recipes.all"}}</a>
+  <a href="/recipes" class="chip" {{if not .ActiveCategory}}aria-current="true"{{end}}>{{T "recipes.all"}}</a>
   {{range .Categories}}
     <a href="/recipes?category={{.ID}}"
-       class="px-3 py-1 text-sm italic rounded-full border {{if and $.ActiveCategory (isSelected $.ActiveCategory.ID .ID)}}border-ink bg-ink text-cream{{else}}border-muted/40 text-muted hover:border-ink hover:text-ink{{end}}">
+       class="chip" {{if and $.ActiveCategory (isSelected $.ActiveCategory.ID .ID)}}aria-current="true"{{end}}>
       {{catName .I18nKey .Name}}
     </a>
   {{end}}
 </div>
 
 {{if not .Recipes}}
-  <div class="bg-paper border-l-4 border-ribbon px-8 py-16 text-center">
-    <p class="font-display text-2xl italic text-muted">{{T "recipes.empty"}}</p>
+  <div class="bg-paper border border-sand rounded-xl px-8 py-16 text-center">
+    <img src="/static/img/logo-stablet.svg" alt="" class="logo h-20 mx-auto mb-6 opacity-90"
+         width="180" height="80">
+    <p class="font-display text-2xl text-muted">{{T "recipes.empty"}}</p>
     <a href="/recipes/new" class="inline-block mt-4 text-ribbon underline-offset-4 hover:underline">{{T "recipes.write_one"}}</a>
   </div>
 {{else}}
   <ul class="grid sm:grid-cols-2 gap-4">
     {{range $r := .Recipes}}
     <li class="relative">
-      <a href="/recipes/{{$r.ID}}" class="block bg-paper border-l-4 border-ribbon px-6 py-5 pr-14 hover:shadow-md transition-shadow">
+      <a href="/recipes/{{$r.ID}}" class="block bg-paper border border-sand rounded-xl px-6 py-5 pr-14 hover:border-ribbon hover:-translate-y-0.5 transition-all motion-reduce:transform-none">
         <div class="flex items-baseline justify-between gap-3">
           <h2 class="font-display text-2xl">{{$r.Name}}</h2>
           <div class="flex gap-0.5 shrink-0">
-            {{range $d := seq 5}}<span class="w-2 h-2 rounded-full {{if dotsFilled $r.Difficulty $d}}bg-ink{{else}}bg-muted/30{{end}}"></span>{{end}}
+            {{range $d := seq 5}}<span class="w-2 h-2 rounded-full {{if dotsFilled $r.Difficulty $d}}bg-terracotta{{else}}bg-sand{{end}}"></span>{{end}}
           </div>
         </div>
         <div class="mt-2 flex flex-wrap gap-4 text-xs italic text-muted">
@@ -48,8 +50,8 @@
               aria-label="{{T "recipes.offline"}}"
               title="{{T "recipes.offline"}}"
               onclick="window.offlineToggle({{$r.ID}}, '/recipes/{{$r.ID}}', this)"
-              class="absolute top-3 right-3 w-9 h-9 grid place-items-center text-muted hover:text-ribbon data-[downloaded=1]:text-ribbon">
-        <svg class="w-5 h-5" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
+              class="absolute top-3 right-3 w-9 h-9 grid place-items-center text-muted hover:text-terracotta data-[downloaded=1]:text-terracotta">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M6 3h12v18l-6-4-6 4V3z" fill="none"/>
         </svg>
       </button>

@@ -1,6 +1,6 @@
 {{define "title"}}{{.Recipe.Name}} · Recipe Journal{{end}}
 {{define "content"}}
-<article class="max-w-3xl mx-auto bg-paper border-l-4 border-ribbon px-6 sm:px-10 py-8 sm:py-10 relative">
+<article class="max-w-3xl mx-auto bg-paper border border-sand rounded-xl px-6 sm:px-10 py-8 sm:py-10 relative">
   <a href="/recipes" class="text-xs uppercase tracking-widest text-muted hover:text-ink">{{T "recipe.back_all"}}</a>
 
   <header class="mt-4 flex flex-wrap items-start justify-between gap-4">
@@ -8,7 +8,7 @@
       <h1 class="font-display text-4xl sm:text-5xl leading-tight break-words">{{.Recipe.Name}}</h1>
       {{if .Recipe.CategoryName}}<p class="italic text-muted mt-1">{{catName .Recipe.CategoryI18nKey .Recipe.CategoryName}}</p>{{end}}
     </div>
-    <a href="/recipes/{{.Recipe.ID}}/edit" class="text-sm uppercase tracking-widest text-muted hover:text-ribbon">{{T "recipe.edit"}}</a>
+    <a href="/recipes/{{.Recipe.ID}}/edit" class="btn btn-quiet btn-sm">{{T "recipe.edit"}}</a>
   </header>
 
   <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6 mt-10">
@@ -16,7 +16,7 @@
     <div>
       <dt class="italic text-sm text-muted">{{T "recipe.difficulty"}}</dt>
       <dd class="flex gap-2 mt-2">
-        {{range $d := seq 5}}<span class="w-4 h-4 rounded-full {{if dotsFilled $.Recipe.Difficulty $d}}bg-ink{{else}}border border-ink/40{{end}}"></span>{{end}}
+        {{range $d := seq 5}}<span class="w-4 h-4 rounded-full {{if dotsFilled $.Recipe.Difficulty $d}}bg-terracotta{{else}}border border-sand{{end}}"></span>{{end}}
       </dd>
     </div>
     {{end}}
@@ -25,7 +25,7 @@
       <dt class="italic text-sm text-muted">{{T "recipe.serves"}}</dt>
       <dd class="flex gap-2 mt-2">
         {{range $s := seq 4}}
-          <span class="w-8 h-8 rounded-full grid place-items-center font-display text-sm {{if isSelectedI $.Recipe.Serves $s}}bg-ink text-cream{{else}}border border-ink/30 text-muted{{end}}">{{$s}}</span>
+          <span class="w-8 h-8 rounded-full grid place-items-center font-display text-sm {{if isSelectedI $.Recipe.Serves $s}}bg-ribbon text-cream{{else}}border border-sand text-muted{{end}}">{{$s}}</span>
         {{end}}
       </dd>
     </div>
@@ -41,8 +41,8 @@
   {{if .Recipe.Ingredients}}
   <section class="mt-10">
     <h2 class="italic text-sm text-muted mb-3">{{T "recipe.ingredients"}}</h2>
-    <ul class="space-y-1">
-      {{range lines .Recipe.Ingredients}}<li class="border-b border-muted/15 py-1.5 font-display text-lg">{{.}}</li>{{end}}
+    <ul class="space-y-1 dotted-list">
+      {{range lines .Recipe.Ingredients}}<li class="border-b border-sand py-1.5 font-display text-lg">{{.}}</li>{{end}}
     </ul>
   </section>
   {{end}}
@@ -50,7 +50,7 @@
   {{if .Recipe.Process}}
   <section class="mt-10">
     <h2 class="italic text-sm text-muted mb-3">{{T "recipe.process"}}</h2>
-    <ol class="space-y-3 list-decimal pl-6 marker:text-ribbon marker:font-display">
+    <ol class="space-y-3 list-decimal pl-6 marker:text-terracotta marker:font-display">
       {{range lines .Recipe.Process}}<li class="font-display text-lg leading-relaxed">{{.}}</li>{{end}}
     </ol>
   </section>
@@ -70,7 +70,7 @@
   </section>
   {{end}}
 
-  <section class="mt-12 pt-8 border-t border-muted/20">
+  <section class="mt-12 pt-8 border-t border-sand">
     <h2 class="italic text-sm text-muted mb-3">{{T "recipe.share"}}</h2>
     {{template "share_state.html" .Recipe}}
   </section>

@@ -12,3 +12,6 @@ static/css/styles.css
 tmp
 **/.DS_Store
 fly.toml
+
+# Logo source pack: the files the app serves are copied into static/img.
+den-lille-kokeboken-logo

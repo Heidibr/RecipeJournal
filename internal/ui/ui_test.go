@@ -13,9 +13,9 @@ import (
 // against every language's func map -- a typo'd func name or an unclosed
 // action fails here rather than at request time in production.
 func TestNewParsesEveryLanguage(t *testing.T) {
-	r, err := New()
+	r, err := New("test")
 	if err != nil {
-		t.Fatalf("New(): %v", err)
+		t.Fatalf("New: %v", err)
 	}
 	for _, l := range i18n.Langs {
 		set, ok := r.sets[l]
@@ -33,9 +33,9 @@ func TestNewParsesEveryLanguage(t *testing.T) {
 // TestRenderTranslatesChrome renders a real page in both languages and checks
 // the chrome changes while the user's own text does not.
 func TestRenderTranslatesChrome(t *testing.T) {
-	r, err := New()
+	r, err := New("test")
 	if err != nil {
-		t.Fatalf("New(): %v", err)
+		t.Fatalf("New: %v", err)
 	}
 	// Mirrors the fields of handlers.pageData that these templates touch.
 	type pd struct {

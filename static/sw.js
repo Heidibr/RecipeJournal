@@ -1,7 +1,7 @@
 // Recipe Journal service worker.
 //
 // Two caches:
-//   shell-v2   — app shell (CSS, JS, fonts, manifest). Precached on install.
+//   shell-v5   — app shell (CSS, JS, fonts, manifest). Precached on install.
 //   recipes-v1 — per-recipe pages the user has explicitly "downloaded for
 //                offline" from the recipe list.
 //
@@ -24,19 +24,35 @@
 //   { type: 'uncache', url }   — drop a stored recipe URL
 //   { type: 'clear' }          — wipe everything (called on logout)
 
-const SHELL_CACHE = "shell-v2";
+const SHELL_CACHE = "shell-v5";
 const RECIPES_CACHE = "recipes-v1";
 
 const SHELL_URLS = [
-  "/static/css/styles.css",
   "/static/js/htmx.min.js",
   "/static/js/offline.js",
-  "/static/img/icon.svg",
+  "/static/img/logo-en-linje.svg",
+  "/static/img/logo-to-linjer.svg",
+  "/static/img/logo-merke.svg",
+  "/static/img/logo-stablet.svg",
+  "/static/img/favicon.svg",
   "/manifest.webmanifest",
 ];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(SHELL_CACHE).then((c) => c.addAll(SHELL_URLS)));
+  // Add each URL on its own. cache.addAll() rejects the whole install if a
+  // single request 404s, which once left an old worker active indefinitely --
+  // serving a stale stylesheet against freshly rendered markup, so text went
+  // invisible wherever a class name had changed. One missing file should cost
+  // us that file, nothing more.
+  e.waitUntil(
+    caches.open(SHELL_CACHE).then((c) =>
+      Promise.all(
+        SHELL_URLS.map((u) =>
+          c.add(u).catch((err) => console.warn("[sw] skipped", u, err)),
+        ),
+      ),
+    ),
+  );
   self.skipWaiting();
 });
 
@@ -64,6 +80,8 @@ self.addEventListener("fetch", (e) => {
 });
 
 async function handle(e, req) {
+  const url = new URL(req.url);
+
   const recipes = await caches.open(RECIPES_CACHE);
   const recipeMatch = await recipes.match(req, { ignoreSearch: true });
   if (recipeMatch) {
@@ -79,6 +97,19 @@ async function handle(e, req) {
 
   const shell = await caches.open(SHELL_CACHE);
   const shellMatch = await shell.match(req);
+
+  // Anything under /static/ that is not precached (notably the content-hashed
+  // stylesheet URL) is cached on first use, so the app still has its CSS
+  // offline even though the filename changes on every build.
+  if (!shellMatch && url.pathname.startsWith("/static/")) {
+    return fetch(req)
+      .then((res) => {
+        if (res.ok) shell.put(req, res.clone());
+        return res;
+      })
+      .catch(() => shell.match(req, { ignoreSearch: true }) || Response.error());
+  }
+
   if (shellMatch) {
     // Refresh in the background. waitUntil keeps the worker alive until the
     // put finishes; the failure case (offline) is ignored on purpose, since

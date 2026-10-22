@@ -24,7 +24,7 @@ var catalog = map[Lang]map[string]string{
 		"cat.holidays_special_events": "Holidays & Special Events",
 
 		// --- Chrome: nav, banner, titles -------------------------------
-		"app.name":            "Recipes",
+		"app.name":            "The Little Cookbook",
 		"nav.recipes":         "Recipes",
 		"nav.categories":      "Categories",
 		"nav.logout":          "Log out",
@@ -193,7 +193,7 @@ var catalog = map[Lang]map[string]string{
 		"cat.holidays_special_events": "Høytider og spesielle anledninger",
 
 		// --- Chrome: nav, banner, titles -------------------------------
-		"app.name":            "Kokebok",
+		"app.name":            "Den lille kokeboken",
 		"nav.recipes":         "Oppskrifter",
 		"nav.categories":      "Kategorier",
 		"nav.logout":          "Logg ut",
