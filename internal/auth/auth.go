@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,18 +29,39 @@ type Auth struct {
 	Store    *store.Store
 	Sessions *scs.SessionManager
 	Mailer   email.Sender
-	limiter  *loginLimiter
+	limiter  *limiter // failed logins and account-deletion password checks
+
+	// Every attempt counts against these, not just failures. Signup is per
+	// IP. Reset emails are limited per IP and per address, so nobody can use
+	// the form to flood someone else's inbox, from one IP or from many.
+	signupLimiter      *limiter
+	forgotIPLimiter    *limiter
+	forgotEmailLimiter *limiter
+	resendLimiter      *limiter
 }
 
 func New(s *store.Store, sm *scs.SessionManager, m email.Sender) *Auth {
-	return &Auth{Store: s, Sessions: sm, Mailer: m, limiter: newLoginLimiter()}
+	return &Auth{
+		Store:              s,
+		Sessions:           sm,
+		Mailer:             m,
+		limiter:            newLimiter(15*time.Minute, 5),
+		signupLimiter:      newLimiter(time.Hour, 5),
+		forgotIPLimiter:    newLimiter(time.Hour, 10),
+		forgotEmailLimiter: newLimiter(time.Hour, 3),
+		resendLimiter:      newLimiter(time.Hour, 3),
+	}
 }
 
 // SignUp creates a user, seeds their default categories, sends a verification
 // email, and logs them in. We auto-login (instead of forcing verify-first)
 // because the user is already trusted enough to use the journal — sharing is
-// the only thing gated on verification.
-func (a *Auth) SignUp(ctx context.Context, email, name, password string) (*models.User, error) {
+// the only thing gated on verification. ip is the client IP, used for the
+// signup rate limit.
+func (a *Auth) SignUp(ctx context.Context, ip, email, name, password string) (*models.User, error) {
+	if !a.signupLimiter.Take(ip) {
+		return nil, ErrTooManyAttempts
+	}
 	email = strings.TrimSpace(strings.ToLower(email))
 	name = strings.TrimSpace(name)
 	if email == "" || name == "" || len(password) < 8 {
@@ -189,6 +211,15 @@ func (a *Auth) SendVerificationEmail(u *models.User) error {
 	return a.Mailer.Send(u.Email, "Verify your Recipe Journal email", body)
 }
 
+// ResendVerificationEmail is SendVerificationEmail behind a per-user limit,
+// for the banner's resend button. Signup's own first email does not count.
+func (a *Auth) ResendVerificationEmail(u *models.User) error {
+	if !a.resendLimiter.Take(strconv.FormatInt(u.ID, 10)) {
+		return ErrTooManyAttempts
+	}
+	return a.SendVerificationEmail(u)
+}
+
 // VerifyEmailToken marks a user verified given a token. Returns ErrInvalidToken
 // for any failure (unknown / expired) so the caller renders one neutral page.
 func (a *Auth) VerifyEmailToken(token string) (int64, error) {
@@ -204,9 +235,13 @@ func (a *Auth) VerifyEmailToken(token string) (int64, error) {
 // SendPasswordResetEmail looks up the user by email and, if found, issues a
 // reset token and emails them a link. If the email is unknown the function
 // silently succeeds — callers must NOT branch on the result, so we don't leak
-// which addresses are registered.
-func (a *Auth) SendPasswordResetEmail(emailAddr string) error {
+// which addresses are registered. The rate limit is checked before the
+// lookup, so being throttled says nothing about whether the address exists.
+func (a *Auth) SendPasswordResetEmail(ip, emailAddr string) error {
 	emailAddr = strings.TrimSpace(strings.ToLower(emailAddr))
+	if !a.forgotIPLimiter.Take(ip) || !a.forgotEmailLimiter.Take(emailAddr) {
+		return ErrTooManyAttempts
+	}
 	u, err := a.Store.UserByEmail(emailAddr)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
@@ -252,10 +287,34 @@ func (a *Auth) ResetPassword(ctx context.Context, token, newPassword string) err
 	return nil
 }
 
+// --- Account deletion ------------------------------------------------------
+
+// DeleteAccount deletes the user and everything they own, after checking
+// their password again: a session left open on a shared computer should not
+// be enough to wipe someone's journal. Wrong passwords count against the
+// same limiter as login, so this form can't be used to guess the password.
+func (a *Auth) DeleteAccount(ctx context.Context, u *models.User, password string) error {
+	key := "delete|" + strconv.FormatInt(u.ID, 10)
+	if !a.limiter.Allow(key) {
+		return ErrTooManyAttempts
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password)); err != nil {
+		a.limiter.RecordFailure(key)
+		return ErrBadCredentials
+	}
+	if err := a.Store.DeleteUser(u.ID); err != nil {
+		return err
+	}
+	a.limiter.Reset(key)
+	// Sessions on other devices are caught by RequireUser, which destroys a
+	// session whose user no longer exists.
+	return a.Sessions.Destroy(ctx)
+}
+
 var (
 	ErrInvalidInput    = errors.New("invalid input")
 	ErrEmailTaken      = errors.New("email already registered")
 	ErrBadCredentials  = errors.New("invalid email or password")
-	ErrTooManyAttempts = errors.New("too many login attempts")
+	ErrTooManyAttempts = errors.New("too many attempts")
 	ErrInvalidToken    = errors.New("invalid or expired token")
 )

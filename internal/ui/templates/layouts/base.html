@@ -45,7 +45,7 @@
       </a>
       <a href="/recipes" class="text-xs sm:text-sm uppercase tracking-widest text-muted hover:text-ink">{{T "nav.recipes"}}</a>
       <a href="/categories" class="text-xs sm:text-sm uppercase tracking-widest text-muted hover:text-ink">{{T "nav.categories"}}</a>
-      <span class="ml-auto text-xs sm:text-sm text-muted hidden sm:inline">{{.CurrentUser.Name}}</span>
+      <a href="/account" class="ml-auto text-xs sm:text-sm text-muted hover:text-ink hidden sm:inline">{{.CurrentUser.Name}}</a>
       {{template "lang_switch.html" .}}
       <form action="/logout" method="post" onsubmit="window.offlineClear && window.offlineClear();">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
@@ -70,5 +70,12 @@
     {{if .Flash}}<div class="mb-6 rounded-lg border-l-4 border-ribbon bg-sage-light px-4 py-3 text-sm">{{.Flash}}</div>{{end}}
     {{block "content" .}}{{end}}
   </main>
+  <!-- The header hides the account link on phones, so the footer carries it
+       there. Privacy is shown signed out too: people should be able to read
+       it before they sign up. -->
+  <footer class="max-w-5xl mx-auto px-4 sm:px-6 pb-8 flex gap-6 text-xs uppercase tracking-widest">
+    {{if .CurrentUser}}<a href="/account" class="text-muted hover:text-ink">{{T "nav.account"}}</a>{{end}}
+    <a href="/privacy" class="text-muted hover:text-ink">{{T "nav.privacy"}}</a>
+  </footer>
 </body>
 </html>{{end}}

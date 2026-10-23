@@ -1,0 +1,22 @@
+# Continuous backup of the SQLite database to Cloudflare R2. Only used when
+# LITESTREAM_BUCKET is set: the server then re-execs itself under Litestream
+# (see execUnderLitestream in cmd/server/main.go). The keys come from the
+# LITESTREAM_ACCESS_KEY_ID / LITESTREAM_SECRET_ACCESS_KEY Fly secrets, which
+# Litestream reads from the environment itself.
+dbs:
+  - path: ${DB_PATH}
+    # A fresh, empty volume restores from the backup before the app starts.
+    # With no backup yet (first run) it starts empty, as before.
+    restore-if-db-not-exists: true
+    replica:
+      type: s3
+      bucket: ${LITESTREAM_BUCKET}
+      path: recipes
+      endpoint: ${LITESTREAM_ENDPOINT}
+      region: auto
+
+# A full snapshot daily, kept a week. The privacy notice promises deleted
+# accounts are gone from backups within 7 days -- keep the two in step.
+snapshot:
+  interval: 24h
+  retention: 168h

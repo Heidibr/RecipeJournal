@@ -17,6 +17,20 @@ RUN case "$TARGETARCH" in \
  && chmod +x /usr/local/bin/tailwindcss \
  && tailwindcss -i static/css/input.css -o static/css/styles.css --minify
 
+# ---- Litestream: continuous backup of the SQLite file ---------------------
+# Pinned, and statically linked, so it runs in the distroless image below.
+FROM debian:bookworm-slim AS litestream
+ARG TARGETARCH
+ARG LITESTREAM_VERSION=0.5.17
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && rm -rf /var/lib/apt/lists/*
+RUN case "$TARGETARCH" in \
+      amd64) LS=x86_64 ;; \
+      arm64) LS=arm64 ;; \
+      *) echo "unsupported arch $TARGETARCH"; exit 1 ;; \
+    esac \
+ && curl -fsSL "https://github.com/benbjohnson/litestream/releases/download/v${LITESTREAM_VERSION}/litestream-${LITESTREAM_VERSION}-linux-${LS}.tar.gz" \
+    | tar xz -C /usr/local/bin litestream
+
 # ---- Go build stage -------------------------------------------------------
 FROM golang:1.26-bookworm AS build
 WORKDIR /src
@@ -39,6 +53,9 @@ COPY --from=build /out/server /app/server
 # image were 404 in production as a result.
 COPY --from=build /src/static/ /app/static/
 COPY --from=css /src/static/css/styles.css /app/static/css/styles.css
+# Idle until LITESTREAM_BUCKET is set; the server execs it then.
+COPY --from=litestream /usr/local/bin/litestream /app/litestream
+COPY --from=build /src/litestream.yml /app/litestream.yml
 ENV ADDR=":8080" \
     DB_PATH="/data/recipes.db" \
     STATIC_DIR="/app/static"

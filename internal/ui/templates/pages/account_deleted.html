@@ -1,0 +1,15 @@
+{{define "title"}}{{T "title.account_deleted"}} · {{T "app.name"}}{{end}}
+{{define "content"}}
+<div class="max-w-md mx-auto bg-paper border border-sand rounded-xl px-8 py-10 mt-8">
+  <h1 class="font-display text-4xl mb-2">{{T "account_deleted.heading"}}</h1>
+  <p class="italic text-muted mb-6">{{T "account_deleted.body"}}</p>
+  <a href="/signup" class="btn btn-primary btn-block">{{T "account_deleted.signup"}}</a>
+</div>
+{{/* Recipes saved for offline use live in the service worker's cache and
+     would outlive the account. Same cleanup the logout form does. */}}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.offlineClear) window.offlineClear();
+  });
+</script>
+{{end}}

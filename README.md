@@ -218,6 +218,49 @@ or the redirect points at a domain without working HTTPS:
 fly secrets set APP_URL=https://denlillekokeboken.no
 ```
 
+### Email
+
+Only two emails are ever sent: the signup verification link and the
+password-reset link. Without SMTP the server logs them instead, which is fine
+locally and broken in production. Any provider that speaks STARTTLS on port
+587 works (`net/smtp` does not do implicit TLS on 465):
+
+```bash
+fly secrets set SMTP_HOST=… SMTP_PORT=587 SMTP_USER=… SMTP_PASS=… \
+  SMTP_FROM="Den lille kokeboken <post@denlillekokeboken.no>"
+```
+
+The sending domain needs SPF and DKIM records, or the mail lands in spam.
+
+### Backup
+
+[Litestream](https://litestream.io) streams every change to the SQLite file
+to a Cloudflare R2 bucket, about once a second, and restores from it on
+start-up if the volume is empty. It is off until `LITESTREAM_BUCKET` is set;
+the server then re-execs itself under Litestream (`execUnderLitestream` in
+`cmd/server/main.go`). Config is `litestream.yml`.
+
+Set-up: in Cloudflare, create an R2 bucket with **EU jurisdiction** (the
+privacy notice says the backup is in the EU), then an R2 API token with
+Object Read & Write on that bucket only.
+
+```bash
+fly secrets set LITESTREAM_BUCKET=… \
+  LITESTREAM_ENDPOINT=https://<account-id>.eu.r2.cloudflarestorage.com \
+  LITESTREAM_ACCESS_KEY_ID=… LITESTREAM_SECRET_ACCESS_KEY=…
+```
+
+Snapshots are kept 7 days (`snapshot.retention`), which is what the privacy
+notice promises for deleted accounts -- change both together.
+
+To restore somewhere else, for example to inspect a backup locally:
+
+```bash
+LITESTREAM_ACCESS_KEY_ID=… LITESTREAM_SECRET_ACCESS_KEY=… \
+  litestream restore -o restored.db \
+  "s3://<bucket>/recipes?endpoint=<endpoint>&region=auto"
+```
+
 ## Default categories
 
 When a user signs up, twelve categories are seeded:

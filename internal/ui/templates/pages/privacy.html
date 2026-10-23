@@ -1,0 +1,52 @@
+{{define "title"}}{{T "title.privacy"}} · {{T "app.name"}}{{end}}
+{{define "content"}}
+<article class="max-w-2xl mx-auto bg-paper border border-sand rounded-xl px-8 py-10 mt-8 space-y-8">
+  <header>
+    <h1 class="font-display text-4xl mb-2">{{T "privacy.heading"}}</h1>
+    <p class="italic text-muted">{{T "privacy.intro"}}</p>
+  </header>
+
+  <section>
+    <h2 class="text-xs uppercase tracking-widest text-muted mb-2">{{T "privacy.who_h"}}</h2>
+    <p>{{T "privacy.who"}}
+      <a href="mailto:{{T "privacy.contact_email"}}" class="text-ribbon underline-offset-4 hover:underline">{{T "privacy.contact_email"}}</a>.</p>
+  </section>
+
+  <section>
+    <h2 class="text-xs uppercase tracking-widest text-muted mb-2">{{T "privacy.what_h"}}</h2>
+    <p>{{T "privacy.what"}}</p>
+  </section>
+
+  <section>
+    <h2 class="text-xs uppercase tracking-widest text-muted mb-2">{{T "privacy.why_h"}}</h2>
+    <p>{{T "privacy.why"}}</p>
+  </section>
+
+  <section>
+    <h2 class="text-xs uppercase tracking-widest text-muted mb-2">{{T "privacy.where_h"}}</h2>
+    <p>{{T "privacy.where"}}</p>
+  </section>
+
+  <section>
+    <h2 class="text-xs uppercase tracking-widest text-muted mb-2">{{T "privacy.cookies_h"}}</h2>
+    <p>{{T "privacy.cookies"}}</p>
+  </section>
+
+  <section>
+    <h2 class="text-xs uppercase tracking-widest text-muted mb-2">{{T "privacy.sharing_h"}}</h2>
+    <p>{{T "privacy.sharing"}}</p>
+  </section>
+
+  <section>
+    <h2 class="text-xs uppercase tracking-widest text-muted mb-2">{{T "privacy.delete_h"}}</h2>
+    <p>{{T "privacy.delete"}}</p>
+  </section>
+
+  <section>
+    <h2 class="text-xs uppercase tracking-widest text-muted mb-2">{{T "privacy.rights_h"}}</h2>
+    <p>{{T "privacy.rights"}}</p>
+  </section>
+
+  <p class="text-sm text-muted italic">{{T "privacy.updated"}}</p>
+</article>
+{{end}}

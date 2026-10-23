@@ -1,0 +1,36 @@
+{{define "title"}}{{T "title.account"}} · {{T "app.name"}}{{end}}
+{{define "content"}}
+<div class="max-w-md mx-auto mt-8 space-y-6">
+  <section class="bg-paper border border-sand rounded-xl px-8 py-10">
+    <h1 class="font-display text-4xl mb-6">{{T "account.heading"}}</h1>
+    <dl class="space-y-4">
+      <div>
+        <dt class="text-xs uppercase tracking-widest text-muted">{{T "field.name"}}</dt>
+        <dd class="mt-1">{{.CurrentUser.Name}}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-widest text-muted">{{T "field.email"}}</dt>
+        <dd class="mt-1">{{.CurrentUser.Email}}</dd>
+      </div>
+    </dl>
+    <p class="mt-6 text-sm">
+      <a href="/privacy" class="text-ribbon underline-offset-4 hover:underline">{{T "account.privacy_link"}}</a>
+    </p>
+  </section>
+
+  <section class="bg-paper border border-sand rounded-xl px-8 py-8">
+    <h2 class="text-xs uppercase tracking-widest text-brick mb-3">{{T "account.delete_heading"}}</h2>
+    <p class="text-sm text-muted mb-6">{{T "account.delete_body"}}</p>
+    {{if .Error}}<div class="mb-4 text-sm text-brick">{{.Error}}</div>{{end}}
+    <form method="post" action="/account/delete" class="space-y-5">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <label class="block">
+        <span class="italic text-sm text-muted">{{T "account.delete_password"}}</span>
+        <input name="password" type="password" required autocomplete="current-password"
+          class="field mt-1">
+      </label>
+      <button type="submit" class="btn btn-danger btn-block">{{T "account.delete_submit"}}</button>
+    </form>
+  </section>
+</div>
+{{end}}

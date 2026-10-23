@@ -42,6 +42,9 @@ func main() {
 }
 
 func run() error {
+	if err := execUnderLitestream(); err != nil {
+		return err
+	}
 	addr := envOr("ADDR", ":8080")
 	dbPath := envOr("DB_PATH", "./recipes.db")
 	staticDir := envOr("STATIC_DIR", "./static")
@@ -53,7 +56,10 @@ func run() error {
 	// dev it defaults to localhost; in prod it MUST be set explicitly.
 	appURL := envOr("APP_URL", "http://localhost:8080")
 
-	db, err := sql.Open("sqlite", dbPath+"?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)")
+	// busy_timeout: Litestream holds short read locks while it copies the
+	// WAL; without a timeout a write that lands on one fails with SQLITE_BUSY
+	// instead of waiting a few milliseconds.
+	db, err := sql.Open("sqlite", dbPath+"?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
 	if err != nil {
 		return err
 	}
@@ -103,7 +109,7 @@ func run() error {
 	h := handlers.New(st, authSvc, renderer)
 
 	r := chi.NewRouter()
-	r.Use(middleware.RealIP)
+	r.Use(flyClientIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(securityHeaders)
@@ -144,6 +150,7 @@ func run() error {
 	// POST (not GET) so it is CSRF-protected and never prefetched.
 	r.Post("/lang/{lang}", h.SetLanguage)
 	r.Get("/share/{token}", h.ShowSharedRecipe) // public read-only
+	r.Get("/privacy", h.ShowPrivacy)
 
 	// Public verification/reset entry points — no auth required because the
 	// user clicks these from an email (no session yet, or different device).
@@ -159,6 +166,9 @@ func run() error {
 		// Resend-verification button on the banner. Auth'd so we know whose
 		// email to refresh; rate-limited implicitly by the 7-day token TTL.
 		r.Post("/verify/resend", h.ResendVerification)
+
+		r.Get("/account", h.ShowAccount)
+		r.Post("/account/delete", h.DoDeleteAccount)
 
 		r.Get("/categories", h.ListCategories)
 		r.Post("/categories", h.CreateCategory)
@@ -246,6 +256,52 @@ func securityHeaders(next http.Handler) http.Handler {
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		h.Set("Permissions-Policy", "geolocation=(), camera=(), microphone=()")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// Paths inside the runtime image; see the Dockerfile.
+const (
+	litestreamBin    = "/app/litestream"
+	litestreamConfig = "/app/litestream.yml"
+	// Set on the child so it doesn't exec Litestream again.
+	litestreamChildEnv = "UNDER_LITESTREAM"
+)
+
+// execUnderLitestream replaces this process with Litestream, which restores
+// the database from the backup if the volume is empty, then starts this same
+// binary again as its child and streams every change to the bucket.
+//
+// It is done here rather than in the Dockerfile's ENTRYPOINT because the
+// runtime image has no shell to make it conditional: until LITESTREAM_BUCKET
+// is set, the server starts on its own exactly as before. syscall.Exec only
+// returns on failure.
+func execUnderLitestream() error {
+	if os.Getenv("LITESTREAM_BUCKET") == "" || os.Getenv(litestreamChildEnv) != "" {
+		return nil
+	}
+	self, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	if err := os.Setenv(litestreamChildEnv, "1"); err != nil {
+		return err
+	}
+	argv := []string{litestreamBin, "replicate", "-config", litestreamConfig, "-exec", self}
+	return syscall.Exec(litestreamBin, argv, os.Environ())
+}
+
+// flyClientIP puts the client's address into r.RemoteAddr, for logging and
+// rate limiting. It reads Fly-Client-IP, which Fly's edge proxy sets on every
+// request. chi's RealIP reads X-Forwarded-For / X-Real-IP instead, and a
+// client can send those itself, so a new fake IP per request walked straight
+// past every rate limit. Off Fly the header is absent and RemoteAddr stays
+// the real TCP peer.
+func flyClientIP(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if ip := r.Header.Get("Fly-Client-IP"); ip != "" {
+			r.RemoteAddr = ip
+		}
 		next.ServeHTTP(w, r)
 	})
 }

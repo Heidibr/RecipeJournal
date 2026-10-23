@@ -2,9 +2,11 @@ package store
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
 	"embed"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
@@ -124,6 +126,14 @@ func (s *Store) UserByID(id int64) (*models.User, error) {
 	))
 }
 
+// DeleteUser removes a user and, through ON DELETE CASCADE, their recipes,
+// categories and outstanding verification/reset tokens. Recipes other people
+// saved from this user's share links are their own copies and stay.
+func (s *Store) DeleteUser(id int64) error {
+	_, err := s.DB.Exec(`DELETE FROM users WHERE id = ?`, id)
+	return err
+}
+
 // SetUserLanguage persists the UI language for a signed-in user, so the
 // choice follows them to any device. Anonymous visitors get the cookie only.
 func (s *Store) SetUserLanguage(userID int64, lang string) error {
@@ -135,7 +145,8 @@ func (s *Store) SetUserLanguage(userID int64, lang string) error {
 
 // CreateEmailVerification issues a new verification token and clears any
 // outstanding ones for the user. The token is the caller-visible identifier
-// (long random) — return it so the caller can email a link.
+// (long random) — return it so the caller can email a link. Only its hash is
+// stored.
 func (s *Store) CreateEmailVerification(userID int64, ttl time.Duration) (string, error) {
 	token, err := newToken(32)
 	if err != nil {
@@ -150,8 +161,8 @@ func (s *Store) CreateEmailVerification(userID int64, ttl time.Duration) (string
 		return "", err
 	}
 	if _, err := tx.Exec(
-		`INSERT INTO email_verifications (token, user_id, expires_at) VALUES (?, ?, ?)`,
-		token, userID, time.Now().Add(ttl).UTC(),
+		`INSERT INTO email_verifications (token_hash, user_id, expires_at) VALUES (?, ?, ?)`,
+		hashToken(token), userID, time.Now().Add(ttl).UTC(),
 	); err != nil {
 		return "", err
 	}
@@ -163,11 +174,12 @@ func (s *Store) CreateEmailVerification(userID int64, ttl time.Duration) (string
 // means the token is unknown, already used, or expired — all surfaced to the
 // caller the same way to avoid leaking which.
 func (s *Store) ConsumeEmailVerification(token string) (int64, error) {
+	h := hashToken(token)
 	var userID int64
 	var expiresAt time.Time
 	err := s.DB.QueryRow(
-		`SELECT user_id, expires_at FROM email_verifications WHERE token = ?`,
-		token,
+		`SELECT user_id, expires_at FROM email_verifications WHERE token_hash = ?`,
+		h,
 	).Scan(&userID, &expiresAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, ErrNotFound
@@ -176,7 +188,7 @@ func (s *Store) ConsumeEmailVerification(token string) (int64, error) {
 		return 0, err
 	}
 	if time.Now().After(expiresAt) {
-		_, _ = s.DB.Exec(`DELETE FROM email_verifications WHERE token = ?`, token)
+		_, _ = s.DB.Exec(`DELETE FROM email_verifications WHERE token_hash = ?`, h)
 		return 0, ErrNotFound
 	}
 	tx, err := s.DB.Begin()
@@ -189,7 +201,7 @@ func (s *Store) ConsumeEmailVerification(token string) (int64, error) {
 	); err != nil {
 		return 0, err
 	}
-	if _, err := tx.Exec(`DELETE FROM email_verifications WHERE token = ?`, token); err != nil {
+	if _, err := tx.Exec(`DELETE FROM email_verifications WHERE token_hash = ?`, h); err != nil {
 		return 0, err
 	}
 	return userID, tx.Commit()
@@ -214,8 +226,8 @@ func (s *Store) CreatePasswordReset(userID int64, ttl time.Duration) (string, er
 		return "", err
 	}
 	if _, err := tx.Exec(
-		`INSERT INTO password_resets (token, user_id, expires_at) VALUES (?, ?, ?)`,
-		token, userID, time.Now().Add(ttl).UTC(),
+		`INSERT INTO password_resets (token_hash, user_id, expires_at) VALUES (?, ?, ?)`,
+		hashToken(token), userID, time.Now().Add(ttl).UTC(),
 	); err != nil {
 		return "", err
 	}
@@ -230,8 +242,8 @@ func (s *Store) LookupPasswordReset(token string) (int64, error) {
 	var expiresAt time.Time
 	var usedAt sql.NullTime
 	err := s.DB.QueryRow(
-		`SELECT user_id, expires_at, used_at FROM password_resets WHERE token = ?`,
-		token,
+		`SELECT user_id, expires_at, used_at FROM password_resets WHERE token_hash = ?`,
+		hashToken(token),
 	).Scan(&userID, &expiresAt, &usedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, ErrNotFound
@@ -254,11 +266,12 @@ func (s *Store) ConsumePasswordReset(token, newHash string) (int64, error) {
 		return 0, err
 	}
 	defer tx.Rollback()
+	h := hashToken(token)
 	var userID int64
 	var expiresAt time.Time
 	var usedAt sql.NullTime
 	err = tx.QueryRow(
-		`SELECT user_id, expires_at, used_at FROM password_resets WHERE token = ?`, token,
+		`SELECT user_id, expires_at, used_at FROM password_resets WHERE token_hash = ?`, h,
 	).Scan(&userID, &expiresAt, &usedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, ErrNotFound
@@ -275,7 +288,7 @@ func (s *Store) ConsumePasswordReset(token, newHash string) (int64, error) {
 		return 0, err
 	}
 	if _, err := tx.Exec(
-		`UPDATE password_resets SET used_at = CURRENT_TIMESTAMP WHERE token = ?`, token,
+		`UPDATE password_resets SET used_at = CURRENT_TIMESTAMP WHERE token_hash = ?`, h,
 	); err != nil {
 		return 0, err
 	}
@@ -290,6 +303,16 @@ func newToken(n int) (string, error) {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+// hashToken is what verification and reset tokens are stored and looked up
+// as. A plain SHA-256 is enough here: unlike a password, the token is 32
+// random bytes, so there is nothing to brute-force and no need for a slow,
+// salted hash like bcrypt. Share tokens are not hashed -- the link itself is
+// what the owner publishes.
+func hashToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
 }
 
 // --- Categories ------------------------------------------------------------

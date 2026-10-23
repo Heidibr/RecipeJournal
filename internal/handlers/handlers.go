@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"errors"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -161,21 +162,25 @@ func (h *Handlers) DoSignUp(w http.ResponseWriter, r *http.Request) {
 	email := r.FormValue("email")
 	name := r.FormValue("name")
 	password := r.FormValue("password")
-	_, err := h.Auth.SignUp(r.Context(), email, name, password)
+	_, err := h.Auth.SignUp(r.Context(), clientIP(r), email, name, password)
 	if err != nil {
 		L := h.lang(r)
 		msg := L.T("err.generic")
+		status := http.StatusBadRequest
 		switch {
 		case errors.Is(err, auth.ErrInvalidInput):
 			msg = L.T("err.fill_fields")
 		case errors.Is(err, auth.ErrEmailTaken):
 			msg = L.T("err.email_taken")
+		case errors.Is(err, auth.ErrTooManyAttempts):
+			msg = L.T("err.throttled")
+			status = http.StatusTooManyRequests
 		}
 		data := h.baseData(r)
 		data.Error = msg
 		data.Email = email
 		data.Name = name
-		h.render(w, r, http.StatusBadRequest, "signup", data)
+		h.render(w, r, status, "signup", data)
 		return
 	}
 	http.Redirect(w, r, "/recipes", http.StatusSeeOther)
@@ -211,16 +216,15 @@ func (h *Handlers) DoLogin(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/recipes", http.StatusSeeOther)
 }
 
-// clientIP picks the request's client IP. middleware.RealIP in main.go has
-// already normalised X-Forwarded-For / X-Real-IP into r.RemoteAddr, so this
-// is just splitting "ip:port" — kept tiny on purpose so the rate-limit key
-// stays predictable in tests.
+// clientIP picks the request's client IP. flyClientIP in main.go has already
+// put Fly's Fly-Client-IP into r.RemoteAddr, so this only strips the port
+// when there is one. SplitHostPort rather than cutting at the last ":", which
+// would chop the end off a bare IPv6 address.
 func clientIP(r *http.Request) string {
-	addr := r.RemoteAddr
-	if i := strings.LastIndex(addr, ":"); i >= 0 {
-		return addr[:i]
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
 	}
-	return addr
+	return r.RemoteAddr
 }
 
 // --- Email verification ----------------------------------------------------
@@ -244,15 +248,18 @@ func (h *Handlers) ShowVerifyResult(w http.ResponseWriter, r *http.Request) {
 }
 
 // ResendVerification re-issues a verification token for the current user.
-// Idempotent from the user's perspective; rate-limited implicitly by the
-// session (you must be logged in) and by the link's 7-day TTL.
+// Idempotent from the user's perspective, and rate-limited per user so the
+// button can't be used to send a stream of emails.
 func (h *Handlers) ResendVerification(w http.ResponseWriter, r *http.Request) {
 	u := auth.UserFromContext(r.Context())
 	if u.EmailVerified() {
 		http.Redirect(w, r, "/recipes", http.StatusSeeOther)
 		return
 	}
-	if err := h.Auth.SendVerificationEmail(u); err != nil {
+	if err := h.Auth.ResendVerificationEmail(u); errors.Is(err, auth.ErrTooManyAttempts) {
+		http.Error(w, h.lang(r).T("err.throttled"), http.StatusTooManyRequests)
+		return
+	} else if err != nil {
 		http.Error(w, h.lang(r).T("err.send_verify"), http.StatusInternalServerError)
 		return
 	}
@@ -272,7 +279,12 @@ func (h *Handlers) DoForgot(w http.ResponseWriter, r *http.Request) {
 	emailAddr := r.FormValue("email")
 	// Errors here are intentionally swallowed for unknown-email cases inside
 	// SendPasswordResetEmail. A genuine infra error still bubbles up.
-	if err := h.Auth.SendPasswordResetEmail(emailAddr); err != nil {
+	if err := h.Auth.SendPasswordResetEmail(clientIP(r), emailAddr); errors.Is(err, auth.ErrTooManyAttempts) {
+		data := h.baseData(r)
+		data.Error = h.lang(r).T("err.throttled")
+		h.render(w, r, http.StatusTooManyRequests, "forgot", data)
+		return
+	} else if err != nil {
 		http.Error(w, h.lang(r).T("err.send_reset"), http.StatusInternalServerError)
 		return
 	}
@@ -323,6 +335,52 @@ func (h *Handlers) DoReset(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) DoLogout(w http.ResponseWriter, r *http.Request) {
 	_ = h.Auth.Logout(r.Context())
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+// --- Account and privacy ---------------------------------------------------
+
+func (h *Handlers) ShowAccount(w http.ResponseWriter, r *http.Request) {
+	h.render(w, r, http.StatusOK, "account", h.baseData(r))
+}
+
+func (h *Handlers) DoDeleteAccount(w http.ResponseWriter, r *http.Request) {
+	_ = r.ParseForm()
+	u := auth.UserFromContext(r.Context())
+	if err := h.Auth.DeleteAccount(r.Context(), u, r.FormValue("password")); err != nil {
+		data := h.baseData(r)
+		status := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, auth.ErrBadCredentials):
+			data.Error = h.lang(r).T("err.wrong_password")
+			status = http.StatusUnauthorized
+		case errors.Is(err, auth.ErrTooManyAttempts):
+			data.Error = h.lang(r).T("err.throttled")
+			status = http.StatusTooManyRequests
+		default:
+			data.Error = h.lang(r).T("err.generic")
+		}
+		h.render(w, r, status, "account", data)
+		return
+	}
+	// The context still carries the deleted user, which keeps their language
+	// for this last page. Drop it from the data so the signed-in header and
+	// the verify banner don't render for an account that no longer exists.
+	data := h.baseData(r)
+	data.CurrentUser = nil
+	h.render(w, r, http.StatusOK, "account_deleted", data)
+}
+
+// ShowPrivacy is public: people should be able to read it before signing up.
+// The route is outside RequireUser, so look the user up from the session
+// directly to keep the signed-in header for those who are.
+func (h *Handlers) ShowPrivacy(w http.ResponseWriter, r *http.Request) {
+	data := h.baseData(r)
+	if uid := h.Auth.CurrentUserID(r); uid != 0 {
+		if u, err := h.Store.UserByID(uid); err == nil {
+			data.CurrentUser = u
+		}
+	}
+	h.render(w, r, http.StatusOK, "privacy", data)
 }
 
 // --- Categories ------------------------------------------------------------

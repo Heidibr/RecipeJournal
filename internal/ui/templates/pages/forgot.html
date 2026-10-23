@@ -3,6 +3,7 @@
 <div class="max-w-md mx-auto bg-paper border border-sand rounded-xl px-8 py-10 mt-8">
   <h1 class="font-display text-4xl mb-2">{{T "forgot.heading"}}</h1>
   <p class="italic text-muted mb-6">{{T "forgot.sub"}}</p>
+  {{if .Error}}<div class="mb-4 text-sm text-brick">{{.Error}}</div>{{end}}
   <form method="post" action="/forgot" class="space-y-5">
     <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
     <label class="block">
