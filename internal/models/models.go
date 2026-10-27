@@ -31,6 +31,14 @@ type Category struct {
 	I18nKey string
 }
 
+// Serves runs 1..ServesPlus, with 0 meaning "not set". ServesPlus is shown
+// as "8+", for dishes that feed a crowd (a traybake, a party). The CHECK in
+// migration 0006 allows exactly this range.
+const ServesPlus = 9
+
+// MaxDifficulty is the top of the 0..5 difficulty scale.
+const MaxDifficulty = 5
+
 type Recipe struct {
 	ID              int64
 	UserID          int64

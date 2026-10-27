@@ -9,9 +9,11 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/heidi/recipejournal/internal/i18n"
+	"github.com/heidi/recipejournal/internal/models"
 )
 
 //go:embed templates
@@ -54,6 +56,20 @@ var funcs = template.FuncMap{
 	},
 	"isSelected":  func(a, b int64) bool { return a == b },
 	"isSelectedI": func(a, b int) bool { return a == b },
+	// servesSteps is every choice in the serves picker, 1..8 then "8+".
+	"servesSteps": func() []int {
+		out := make([]int, models.ServesPlus)
+		for i := range out {
+			out[i] = i + 1
+		}
+		return out
+	},
+	"servesLabel": func(n int) string {
+		if n >= models.ServesPlus {
+			return strconv.Itoa(models.ServesPlus-1) + "+"
+		}
+		return strconv.Itoa(n)
+	},
 	"derefI64": func(p *int64) int64 {
 		if p == nil {
 			return 0

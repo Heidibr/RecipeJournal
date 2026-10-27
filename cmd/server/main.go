@@ -151,6 +151,7 @@ func run() error {
 	r.Post("/lang/{lang}", h.SetLanguage)
 	r.Get("/share/{token}", h.ShowSharedRecipe) // public read-only
 	r.Get("/privacy", h.ShowPrivacy)
+	r.Get("/offline", h.ShowOffline) // precached by sw.js as its fallback page
 
 	// Public verification/reset entry points — no auth required because the
 	// user clicks these from an email (no session yet, or different device).
@@ -210,6 +211,10 @@ func run() error {
 		SameSite: http.SameSiteLaxMode,
 		Secure:   !isDev,
 	})
+	// nosurf assumes every request is HTTPS and then requires an https://
+	// Referer, so on http://localhost every form post failed. In prod it
+	// stays true: Fly terminates TLS and force_https sends nothing over http.
+	csrfHandler.SetIsTLSFunc(func(*http.Request) bool { return !isDev })
 	csrfHandler.SetFailureHandler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		log.Printf("csrf failure: %v (path=%s)", nosurf.Reason(req), req.URL.Path)
 		http.Error(w, "Your session expired. Please reload the page and try again.", http.StatusForbidden)

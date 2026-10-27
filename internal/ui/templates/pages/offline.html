@@ -1,0 +1,32 @@
+{{define "title"}}{{T "title.offline"}} · {{T "app.name"}}{{end}}
+{{define "content"}}
+{{/* The service worker precaches this page and serves it whenever a page
+     can't be fetched and isn't saved. It is rendered once, online, so it
+     cannot know which recipes are saved: offline.js fills the list from
+     localStorage. Recipe names are the user's own words, set as text. */}}
+<div class="max-w-md mx-auto bg-paper border border-sand rounded-xl px-8 py-10 mt-8">
+  <h1 class="font-display text-4xl mb-2">{{T "offline.heading"}}</h1>
+  <p class="italic text-muted mb-6">{{T "offline.sub"}}</p>
+  <ul id="offline-list" class="space-y-3"></ul>
+  <p id="offline-empty" class="text-sm text-muted" hidden>{{T "offline.empty"}}</p>
+</div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var list = document.getElementById('offline-list');
+    var saved = window.offlineRecipes ? window.offlineRecipes() : new Map();
+    if (saved.size === 0) {
+      document.getElementById('offline-empty').hidden = false;
+      return;
+    }
+    saved.forEach(function (name, id) {
+      var a = document.createElement('a');
+      a.href = '/recipes/' + id;
+      a.className = 'font-display text-xl text-ribbon underline-offset-4 hover:underline';
+      a.textContent = name || {{T "offline.untitled"}};
+      var li = document.createElement('li');
+      li.appendChild(a);
+      list.appendChild(li);
+    });
+  });
+</script>
+{{end}}

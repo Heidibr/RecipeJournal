@@ -1,0 +1,20 @@
+{{/* Delete-recipe confirmation. Takes the page data (.Recipe, .CSRFToken).
+     Open it with a type="button" that calls showModal() on #delete-recipe.
+
+     Render it OUTSIDE any other <form>: forms cannot nest, and the browser
+     drops a nested <form> tag, so its button submits the parent instead.
+     That is how "Delete" on the edit page used to save the recipe.
+
+     Cancel uses formmethod="dialog", which closes the dialog without a
+     request. It is autofocused, so Enter on an accidental open is harmless. */}}
+<dialog id="delete-recipe" class="modal" aria-labelledby="delete-recipe-title">
+  <form method="post" action="/recipes/{{.Recipe.ID}}/delete">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <h2 id="delete-recipe-title" class="font-display text-2xl leading-snug mb-2">{{Tf "recipe.delete_confirm" .Recipe.Name}}</h2>
+    <p class="text-sm text-muted mb-6">{{T "recipe.delete_undo"}}</p>
+    <div class="flex justify-end gap-3">
+      <button type="submit" formmethod="dialog" formnovalidate autofocus class="btn btn-quiet btn-sm">{{T "recipe.cancel"}}</button>
+      <button type="submit" class="btn btn-danger btn-sm">{{T "recipe.delete"}}</button>
+    </div>
+  </form>
+</dialog>

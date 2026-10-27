@@ -26,7 +26,7 @@
       </div>
     </div>
 
-    <!-- difficulty (5 dots) + serves (1-4 circles) -->
+    <!-- difficulty (5 dots) + serves (1-8 circles, then 8+) -->
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
       <fieldset>
         <legend class="italic text-sm text-muted mb-2">{{T "recipe.difficulty"}}</legend>
@@ -42,11 +42,11 @@
 
       <fieldset>
         <legend class="italic text-sm text-muted mb-2">{{T "recipe.serves"}}</legend>
-        <div class="flex gap-2">
-          {{range $s := seq 4}}
+        <div class="flex flex-wrap gap-2">
+          {{range $s := servesSteps}}
             <label class="cursor-pointer">
               <input type="radio" name="serves" value="{{$s}}" {{if isSelectedI $.Recipe.Serves $s}}checked{{end}} class="peer sr-only">
-              <span class="block w-10 h-10 sm:w-9 sm:h-9 rounded-full border-2 border-sage grid place-items-center font-display peer-checked:bg-ribbon peer-checked:text-cream transition-colors">{{$s}}</span>
+              <span class="block w-10 h-10 sm:w-9 sm:h-9 rounded-full border-2 border-sage grid place-items-center font-display peer-checked:bg-ribbon peer-checked:text-cream transition-colors">{{servesLabel $s}}</span>
             </label>
           {{end}}
         </div>
@@ -101,13 +101,11 @@
       </button>
       <a href="{{if .Recipe.ID}}/recipes/{{.Recipe.ID}}{{else}}/recipes{{end}}" class="btn btn-quiet btn-sm">{{T "recipe.cancel"}}</a>
       {{if .Recipe.ID}}
-        <form method="post" action="/recipes/{{.Recipe.ID}}/delete" class="ml-auto"
-              onsubmit="return confirm('{{T "recipe.delete_confirm"}}')">
-          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-          <button type="submit" class="btn btn-danger btn-sm">{{T "recipe.delete"}}</button>
-        </form>
+        <button type="button" class="btn btn-danger btn-sm ml-auto"
+                onclick="document.getElementById('delete-recipe').showModal()">{{T "recipe.delete"}}</button>
       {{end}}
     </div>
   </form>
+  {{if .Recipe.ID}}{{template "delete_recipe.html" .}}{{end}}
 </div>
 {{end}}

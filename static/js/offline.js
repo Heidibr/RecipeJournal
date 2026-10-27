@@ -2,10 +2,11 @@
 //
 // Responsibilities:
 //   * Register the service worker (scope: /).
-//   * Persist the user's "downloaded recipe IDs" set in localStorage, so the
-//     bookmark indicator on the list survives reloads without a server call.
+//   * Persist the user's downloaded recipes ({id, name}) in localStorage, so
+//     the list buttons survive reloads without a server call, and so the
+//     /offline page can list them by name when there is no network.
 //   * Provide window.offlineToggle(id, url, btn) for the list-page buttons.
-//   * Provide window.offlineClear() for the logout form to call before submit.
+//   * Provide window.offlineClear() for logout and account deletion.
 
 (function () {
   const STORAGE_KEY = "rj.offlineRecipes";
@@ -20,40 +21,53 @@
         )
       : Promise.resolve(null);
 
-  function loadSet() {
+  // Returns a Map of id -> name. Older versions stored a bare array of ids;
+  // those still load, just without a name until the recipe is re-saved.
+  function load() {
     try {
-      return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"));
+      const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      return new Map(
+        raw.map((e) => (typeof e === "object" ? [String(e.id), e.name || ""] : [String(e), ""])),
+      );
     } catch {
-      return new Set();
+      return new Map();
     }
   }
-  function saveSet(set) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...set]));
+  function save(map) {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([...map].map(([id, name]) => ({ id, name }))),
+    );
   }
+  window.offlineRecipes = load;
+
+  // Labels come from the template (data-label-on / data-label-off), so they
+  // are in the page's language like every other string.
   function paint(btn, downloaded) {
     btn.dataset.downloaded = downloaded ? "1" : "0";
     btn.setAttribute("aria-pressed", downloaded ? "true" : "false");
-    btn.title = downloaded ? "Remove offline copy" : "Download for offline";
+    const label = downloaded ? btn.dataset.labelOn : btn.dataset.labelOff;
+    if (label) {
+      btn.title = label;
+      btn.setAttribute("aria-label", label);
+    }
   }
 
   window.offlineToggle = async function (id, url, btn) {
     const reg = await swReady;
-    if (!reg) {
-      alert("Offline isn't supported in this browser.");
-      return;
-    }
-    const set = loadSet();
+    if (!reg || !reg.active) return;
+    const map = load();
     const idStr = String(id);
-    if (set.has(idStr)) {
-      reg.active && reg.active.postMessage({ type: "uncache", url });
-      set.delete(idStr);
+    if (map.has(idStr)) {
+      reg.active.postMessage({ type: "uncache", url });
+      map.delete(idStr);
       paint(btn, false);
     } else {
-      reg.active && reg.active.postMessage({ type: "cache", url });
-      set.add(idStr);
+      reg.active.postMessage({ type: "cache", url });
+      map.set(idStr, btn.dataset.name || "");
       paint(btn, true);
     }
-    saveSet(set);
+    save(map);
   };
 
   window.offlineClear = function () {
@@ -66,9 +80,9 @@
 
   // On DOM ready, paint every list-row button to reflect its persisted state.
   document.addEventListener("DOMContentLoaded", () => {
-    const set = loadSet();
+    const map = load();
     document.querySelectorAll("[data-offline-toggle]").forEach((btn) => {
-      paint(btn, set.has(btn.dataset.offlineToggle));
+      paint(btn, map.has(btn.dataset.offlineToggle));
     });
   });
 })();

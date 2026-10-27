@@ -20,11 +20,7 @@
     {{if gt .Recipe.Serves 0}}
     <div>
       <dt class="italic text-sm text-muted">{{T "recipe.serves"}}</dt>
-      <dd class="flex gap-2 mt-2">
-        {{range $s := seq 4}}
-          <span class="w-8 h-8 rounded-full grid place-items-center font-display text-sm {{if isSelectedI $.Recipe.Serves $s}}bg-ribbon text-cream{{else}}border border-sand text-muted{{end}}">{{$s}}</span>
-        {{end}}
-      </dd>
+      <dd class="font-display text-2xl mt-1">{{servesLabel .Recipe.Serves}}</dd>
     </div>
     {{end}}
     {{with minutes .Recipe.PrepMinutes}}

@@ -370,6 +370,13 @@ func (h *Handlers) DoDeleteAccount(w http.ResponseWriter, r *http.Request) {
 	h.render(w, r, http.StatusOK, "account_deleted", data)
 }
 
+// ShowOffline renders the page the service worker falls back to when a page
+// can't be fetched. Public and user-independent, since it is cached once and
+// served to whoever is on the device; offline.js fills in the saved recipes.
+func (h *Handlers) ShowOffline(w http.ResponseWriter, r *http.Request) {
+	h.render(w, r, http.StatusOK, "offline", h.baseData(r))
+}
+
 // ShowPrivacy is public: people should be able to read it before signing up.
 // The route is outside RequireUser, so look the user up from the session
 // directly to keep the signed-in header for those who are.
@@ -772,8 +779,10 @@ func readRecipeForm(r *http.Request) store.RecipeInput {
 			in.CategoryID = &id
 		}
 	}
-	in.Difficulty = atoi(r.FormValue("difficulty"))
-	in.Serves = atoi(r.FormValue("serves"))
+	// Clamped because the columns have CHECK constraints: an out-of-range
+	// value from a hand-edited form would otherwise be a 500, not a no-op.
+	in.Difficulty = max(0, min(models.MaxDifficulty, atoi(r.FormValue("difficulty"))))
+	in.Serves = max(0, min(models.ServesPlus, atoi(r.FormValue("serves"))))
 	in.PrepMinutes = atoi(r.FormValue("prep_minutes"))
 	in.CookMinutes = atoi(r.FormValue("cook_minutes"))
 	return in

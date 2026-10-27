@@ -38,21 +38,29 @@
         </div>
         <div class="mt-2 flex flex-wrap gap-4 text-xs italic text-muted">
           {{if $r.CategoryName}}<span>{{catName $r.CategoryI18nKey $r.CategoryName}}</span>{{end}}
-          {{if gt $r.Serves 0}}<span>{{Tf "recipes.serves" $r.Serves}}</span>{{end}}
+          {{if gt $r.Serves 0}}<span>{{Tf "recipes.serves" (servesLabel $r.Serves)}}</span>{{end}}
           {{with minutes $r.PrepMinutes}}<span>{{Tf "recipes.prep" .}}</span>{{end}}
           {{with minutes $r.CookMinutes}}<span>{{Tf "recipes.cook" .}}</span>{{end}}
         </div>
       </a>
+      {{/* Save for offline: a download arrow, which turns into a tick once
+           saved. It used to be a bookmark, which read as "favourite". */}}
       <button type="button"
               data-offline-toggle="{{$r.ID}}"
+              data-name="{{$r.Name}}"
+              data-label-off="{{T "recipes.offline"}}"
+              data-label-on="{{T "recipes.offline_remove"}}"
               data-downloaded="0"
               aria-pressed="false"
               aria-label="{{T "recipes.offline"}}"
               title="{{T "recipes.offline"}}"
               onclick="window.offlineToggle({{$r.ID}}, '/recipes/{{$r.ID}}', this)"
-              class="absolute top-3 right-3 w-9 h-9 grid place-items-center text-muted hover:text-terracotta data-[downloaded=1]:text-terracotta">
-        <svg class="w-5 h-5" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M6 3h12v18l-6-4-6 4V3z" fill="none"/>
+              class="group absolute top-3 right-3 w-9 h-9 grid place-items-center text-muted hover:text-ribbon data-[downloaded=1]:text-ribbon">
+        <svg class="w-5 h-5 group-data-[downloaded=1]:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>
+        </svg>
+        <svg class="w-5 h-5 hidden group-data-[downloaded=1]:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12.5l4.5 4.5L19 7.5M5 20h14"/>
         </svg>
       </button>
     </li>

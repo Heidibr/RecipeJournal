@@ -1,4 +1,4 @@
-{{define "title"}}{{.Recipe.Name}} · Recipe Journal{{end}}
+{{define "title"}}{{.Recipe.Name}} · {{T "app.name"}}{{end}}
 {{define "content"}}
 <article class="max-w-3xl mx-auto bg-paper border border-sand rounded-xl px-6 sm:px-10 py-8 sm:py-10 relative">
   <a href="/recipes" class="text-xs uppercase tracking-widest text-muted hover:text-ink">{{T "recipe.back_all"}}</a>
@@ -8,7 +8,11 @@
       <h1 class="font-display text-4xl sm:text-5xl leading-tight break-words">{{.Recipe.Name}}</h1>
       {{if .Recipe.CategoryName}}<p class="italic text-muted mt-1">{{catName .Recipe.CategoryI18nKey .Recipe.CategoryName}}</p>{{end}}
     </div>
-    <a href="/recipes/{{.Recipe.ID}}/edit" class="btn btn-quiet btn-sm">{{T "recipe.edit"}}</a>
+    <div class="flex gap-1">
+      <a href="/recipes/{{.Recipe.ID}}/edit" class="btn btn-quiet btn-sm">{{T "recipe.edit"}}</a>
+      <button type="button" class="btn btn-danger btn-sm"
+              onclick="document.getElementById('delete-recipe').showModal()">{{T "recipe.delete"}}</button>
+    </div>
   </header>
 
   <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6 mt-10">
@@ -23,11 +27,7 @@
     {{if gt .Recipe.Serves 0}}
     <div>
       <dt class="italic text-sm text-muted">{{T "recipe.serves"}}</dt>
-      <dd class="flex gap-2 mt-2">
-        {{range $s := seq 4}}
-          <span class="w-8 h-8 rounded-full grid place-items-center font-display text-sm {{if isSelectedI $.Recipe.Serves $s}}bg-ribbon text-cream{{else}}border border-sand text-muted{{end}}">{{$s}}</span>
-        {{end}}
-      </dd>
+      <dd class="font-display text-2xl mt-1">{{servesLabel .Recipe.Serves}}</dd>
     </div>
     {{end}}
     {{with minutes .Recipe.PrepMinutes}}
@@ -75,4 +75,5 @@
     {{template "share_state.html" .Recipe}}
   </section>
 </article>
+{{template "delete_recipe.html" .}}
 {{end}}

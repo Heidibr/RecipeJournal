@@ -13,7 +13,10 @@
 //     the background so a changed asset is live on the next load. This was
 //     cache-first, which never re-fetched and so made every CSS/JS deploy
 //     invisible to anyone who had already opened the app.
-//   * Everything else → network (no offline fallback).
+//   * Everything else → network. A page navigation that fails (offline, and
+//     the page isn't saved) gets the precached /offline page, which lists
+//     the saved recipes. Without it, opening the app offline landed on the
+//     browser's own error page and the saved recipes were unreachable.
 //
 // SHELL_CACHE carries a version. Bump it whenever the shell asset *list*
 // changes; routine content changes no longer need a bump, because
@@ -24,7 +27,8 @@
 //   { type: 'uncache', url }   — drop a stored recipe URL
 //   { type: 'clear' }          — wipe everything (called on logout)
 
-const SHELL_CACHE = "shell-v5";
+const SHELL_CACHE = "shell-v6";
+const OFFLINE_URL = "/offline";
 const RECIPES_CACHE = "recipes-v1";
 
 const SHELL_URLS = [
@@ -36,6 +40,7 @@ const SHELL_URLS = [
   "/static/img/logo-stablet.svg",
   "/static/img/favicon.svg",
   "/manifest.webmanifest",
+  OFFLINE_URL,
 ];
 
 self.addEventListener("install", (e) => {
@@ -107,7 +112,10 @@ async function handle(e, req) {
         if (res.ok) shell.put(req, res.clone());
         return res;
       })
-      .catch(() => shell.match(req, { ignoreSearch: true }) || Response.error());
+      .catch(
+        async () =>
+          (await shell.match(req, { ignoreSearch: true })) || Response.error(),
+      );
   }
 
   if (shellMatch) {
@@ -122,6 +130,11 @@ async function handle(e, req) {
     return shellMatch;
   }
 
+  if (req.mode === "navigate") {
+    return fetch(req).catch(
+      async () => (await shell.match(OFFLINE_URL)) || Response.error(),
+    );
+  }
   return fetch(req);
 }
 
